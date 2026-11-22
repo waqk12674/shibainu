@@ -518,6 +518,9 @@ function tells(dt) {
   const k = state === 'gau' ? 18 : state === 'result' ? 4 : 2.5;
   headYaw += (yT - headYaw) * Math.min(1, dt * k); headPitch += (pT - headPitch) * Math.min(1, dt * k);
   const gr = sm(0.74, 0.95, a);                                     // 5. 唸る（小刻みに震える）
+  // うなり声を文字でも（音を消していても、端末がマナーモードでもわかるように）。頭の上で震える
+  const gt = $('growlT'), go = state === 'play' ? Math.min(1, gr * 1.6) : 0; gt.style.opacity = go;
+  if (go > 0) { const s = toScreen(headP.localToWorld(new THREE.Vector3(0.02, 0.2, 0))); gt.style.left = s.x + (Math.random() - 0.5) * 5 * go + 'px'; gt.style.top = Math.max(110, s.y) + (Math.random() - 0.5) * 5 * go + 'px'; }
   headP.rotation.set(gr * Math.sin(tNow * 70) * 0.006, headYaw, headPitch + gr * Math.sin(tNow * 53) * 0.006);
   if (AC && LOOP.pant) LOOP.pant.gain.setTargetAtTime((state === 'play' || state === 'title') ? (1 - tin) * 0.35 : 0, AC.currentTime, 0.2);
   const stiff = sm(0.55, 0.7, a);                                   // 体がこわばる（息が止まる）
@@ -549,7 +552,11 @@ function loop(now) {
     if (G.showMeter) { $('meter').firstChild.style.width = Math.min(100, anger * 100) + '%'; $('mFloor').style.left = Math.min(100, irrit * 100) + '%'; }
   }
   if ((state === 'gau' || state === 'timeup') && performance.now() - gauT > 1600) showResult();
-  if (flashT > 0) { flashT -= dt; if (flashT <= 0) $('msg').style.opacity = 0; }
+  if (flashT > 0) {
+    flashT -= dt; if (flashT <= 0) $('msg').style.opacity = 0;
+    const s = toScreen(dog.localToWorld(new THREE.Vector3(-0.02, 0.62, 0)));   // 柴犬の上
+    $('msg').style.left = Math.max(100, Math.min(innerWidth - 100, s.x)) + 'px'; $('msg').style.top = Math.max(110, Math.min(innerHeight - 80, s.y)) + 'px';
+  }
   tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
   for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);
   renderer.render(scene, camera);
