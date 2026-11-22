@@ -572,9 +572,9 @@ function showResult() {
   state = 'result'; $('gau').style.opacity = 0; ['stick', 'hud', 'zoom', 'timer'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
   const ttl = TITLES.find(t => hiki < t[0])[1];
-  $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛玉`; $('rTtl').textContent = ttl;
-  $('rWhy').textContent = endBy === 'time' ? '時間いっぱい抜ききった！' : `ガウッ！と怒られた（残り${Math.max(0, Math.ceil(timeLeft))}秒）`;
-  const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛玉ができた！`;
+  $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛`; $('rTtl').textContent = `称号「${ttl}」`;
+  $('rWhy').textContent = endBy === 'time' ? '' : `ガウッ！と怒られた（残り${Math.max(0, Math.ceil(timeLeft))}秒）`;
+  const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛を抜いた！`;
   $('shareX').href = 'https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://waqk.jp/');
   const rk = LS.get('shiba_rank2', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank2', rk.slice(0, 10));
   $('rankList').innerHTML = rk.slice(0, 10).map(r => `<li><span>直径 ${r.d}cm</span><span>${r.h}匹分</span></li>`).join('');
@@ -595,12 +595,12 @@ function makeShot(dia, hiki, ttl) {
   const grd = g.createLinearGradient(W * 0.52, 0, W, 0); grd.addColorStop(0, 'rgba(251,244,232,0)'); grd.addColorStop(0.25, 'rgba(251,244,232,.9)'); grd.addColorStop(1, 'rgba(251,244,232,.96)');
   g.fillStyle = grd; g.fillRect(W * 0.52, 0, W * 0.48, H); g.textAlign = 'right'; const X = W - 60;
   g.fillStyle = '#7a5a40'; g.font = "700 34px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText('柴犬（換毛期）', X, 96);
-  g.fillStyle = '#8a5a3a'; g.font = "700 30px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('毛玉 直径', X, 200);
+  g.fillStyle = '#8a5a3a'; g.font = "700 30px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('毛 直径', X, 200);
   g.fillStyle = '#c4501d'; g.font = "700 120px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText(`${dia.toFixed(1)}cm`, X, 320);
   g.fillStyle = '#4a2a14'; g.font = "700 48px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText(`柴犬 ${hiki.toFixed(2)}匹分`, X, 400);
-  g.font = "700 28px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; const tw = g.measureText(ttl).width;
+  g.font = "700 28px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; const tl = `称号「${ttl}」`, tw = g.measureText(tl).width;
   g.fillStyle = '#4a2a14'; g.beginPath(); g.roundRect ? g.roundRect(X - tw - 36, 440, tw + 36, 50, 25) : g.rect(X - tw - 36, 440, tw + 36, 50); g.fill();
-  g.fillStyle = '#fbf4e8'; g.fillText(ttl, X - 18, 475);
+  g.fillStyle = '#fbf4e8'; g.fillText(tl, X - 18, 475);
   g.fillStyle = '#9a7a60'; g.font = "500 24px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('WAQK GAMES（ワックゲームズ）', X, H - 44);
   $('shot').src = c.toDataURL('image/jpeg', 0.88);
 }
