@@ -24,11 +24,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 #timer.low{color:#fff;background:var(--shiba)}
 #meter{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));transform:translateX(-50%);width:180px;height:8px;border-radius:4px;background:rgba(251,244,232,.85);overflow:hidden;pointer-events:none}
 #meter>div{height:100%;width:0;background:linear-gradient(90deg,#e8b070,#c4501d)}#mFloor{position:absolute;top:0;bottom:0;width:2px;background:#3a2416}
-#stick{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(60px + env(safe-area-inset-bottom));width:104px;height:104px;border-radius:50%;background:rgba(251,244,232,.55);border:2px solid rgba(251,244,232,.9);box-shadow:0 2px 8px rgba(60,40,20,.15);touch-action:none}
-#knob{position:absolute;left:32px;top:32px;width:40px;height:40px;border-radius:50%;background:rgba(251,244,232,.97);box-shadow:0 2px 6px rgba(60,40,20,.25);pointer-events:none}
-#stick::after{content:'まわる';position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:11px;color:#5a4535;text-shadow:0 0 4px #fff}
-#zoom{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(66px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
-#zoom button{width:48px;height:48px;border-radius:50%;border:0;background:rgba(251,244,232,.9);font-weight:800;font-size:13px;box-shadow:0 2px 6px rgba(60,40,20,.2)}
+/* ドラッグで回せることを知らせる、上下左右のうっすら点滅する矢印（押せない） */
+#arrows i{position:fixed;font-style:normal;font-size:32px;font-weight:700;line-height:1;color:var(--paper);text-shadow:0 0 2px rgba(60,40,20,.7),0 1px 6px rgba(60,40,20,.5);pointer-events:none;animation:blink 2.4s ease-in-out infinite}
+#arrows .up{top:calc(58px + env(safe-area-inset-top));left:50%;transform:translateX(-50%)}#arrows .dn{bottom:calc(60px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%)}
+#arrows .lt{left:calc(10px + env(safe-area-inset-left));top:50%;transform:translateY(-50%)}#arrows .rt{right:calc(10px + env(safe-area-inset-right));top:50%;transform:translateY(-50%)}
+@keyframes blink{0%,100%{opacity:.15}50%{opacity:.65}}
 #msg{position:fixed;left:50%;bottom:calc(178px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(58,36,22,.82);color:var(--paper);padding:8px 14px;border-radius:16px;font-size:13px;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none}
 #gau{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:min(22vw,120px);font-weight:900;color:var(--paper);-webkit-text-stroke:3px var(--ink);text-shadow:0 6px 0 var(--ink);opacity:0;pointer-events:none;white-space:nowrap}
 #red{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(196,40,20,0) 40%,rgba(196,40,20,.45));opacity:0;transition:opacity .15s;pointer-events:none}
@@ -65,8 +65,7 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
 <div id="meter" class="hide"><div></div><i id="mFloor"></i></div>
 <button class="tb hide" id="snd">音 あり</button>
 <button class="tb" id="adj">調整</button>
-<div id="stick" class="hide"><div id="knob"></div></div>
-<div id="zoom" class="hide"><button id="zin">寄る</button><button id="zout">引く</button></div>
+<div id="arrows" class="hide"><i class="up">△</i><i class="dn">▽</i><i class="lt">◁</i><i class="rt">▷</i></div>
 <div id="msg"></div>
 <div id="gau" class="mincho">ガウッ！</div>
 

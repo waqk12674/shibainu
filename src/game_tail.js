@@ -62,13 +62,13 @@ function gather(geo, center, R, prob, list, info, cap = 700) {
   }
 }
 // ---- ピンチでズーム（スマホ）。2本目の指が触れたら抜くのをやめ、指を全部離すまで抜けない
-const touches = new Map(); let pinch = null;
+const touches = new Map(); let pinch = null, orbit = null;
 document.addEventListener('gesturechange', e => e.preventDefault());   // iPhone の Safari でページごと拡大しない
 const tDist = () => { const [a, b] = touches.values(); return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
 cv.addEventListener('pointerdown', e => {
   if (e.pointerType !== 'touch') return;
   touches.set(e.pointerId, { x: e.clientX, y: e.clientY });   // タッチは押した要素に自動で捕まる
-  if (touches.size === 2 && state === 'play') { if (pull) endPull({ pointerId: pull.id }); pinch = { d0: tDist(), z0: zoomU }; }
+  if (touches.size === 2 && state === 'play') { if (pull) endPull({ pointerId: pull.id }); orbit = null; pinch = { d0: tDist(), z0: zoomU }; }
 });
 cv.addEventListener('pointermove', e => {
   const t = touches.get(e.pointerId); if (!t) return;
@@ -79,7 +79,8 @@ const endTouch = e => { touches.delete(e.pointerId); if (touches.size === 0) pin
 cv.addEventListener('pointerup', endTouch); cv.addEventListener('pointercancel', endTouch);
 cv.addEventListener('pointerdown', e => {
   if (state !== 'play' || pull || pinch || touches.size > 1) return;
-  const h = pick(e), fs = floaterAt(e.clientX, e.clientY); if (!h && !fs) return;
+  const h = pick(e), fs = floaterAt(e.clientX, e.clientY);
+  if (!h && !fs) { orbit = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { cv.setPointerCapture(e.pointerId); } catch (er) {} return; }   // 柴犬以外を押したら、ドラッグで回す
   const P_ = fs ? fs.P : h.object.userData.part, local = fs ? fs.c.clone() : P_.parent.worldToLocal(h.point.clone());
   // 毛の根元へ寄せる（つかんだ点から面へ）。浮き毛は、浮いた先を押しても根元ごとつかむ
   const flo = fs || (P_.name === 'body' ? floaters.find(f => !f.grab && f.c.distanceTo(local) < f.r * 1.3) : null);
@@ -101,7 +102,13 @@ cv.addEventListener('pointerdown', e => {
   setAlive(P_.p.ug, uL, 0); setAlive(P_.p.gg, gL, 0);
   cv.setPointerCapture(e.pointerId); idleT = 0; audioInit();
 });
-cv.addEventListener('pointermove', e => { if (pull && e.pointerId === pull.id) { pull.x = e.clientX; pull.y = e.clientY; } });
+cv.addEventListener('pointermove', e => {
+  if (pull && e.pointerId === pull.id) { pull.x = e.clientX; pull.y = e.clientY; }
+  if (orbit && e.pointerId === orbit.id && !pinch) {   // つかんだ床ごと回す向き。画面の幅いっぱいで約半周
+    az += (e.clientX - orbit.x) * Math.PI / innerWidth; el = Math.max(0.15, Math.min(1.1, el + (e.clientY - orbit.y) * 1.6 / innerHeight));
+    orbit.x = e.clientX; orbit.y = e.clientY;
+  }
+});
 const endPull = e => {
   if (!pull || e.pointerId !== pull.id) return;
   setAlive(pull.P.p.ug, pull.uL, 255); setAlive(pull.P.p.gg, pull.gL, 255);   // 抜けなかった毛は元に戻る
@@ -109,6 +116,8 @@ const endPull = e => {
   pull.P.parent.remove(pull.tuft.mesh); pull.tuft.mesh.geometry.dispose(); pull.tuft.mesh.material.dispose(); pull = null;
 };
 cv.addEventListener('pointerup', endPull); cv.addEventListener('pointercancel', endPull);
+const endOrbit = e => { if (orbit && e.pointerId === orbit.id) orbit = null; };
+cv.addEventListener('pointerup', endOrbit); cv.addEventListener('pointercancel', endOrbit);
 
 const tuftU = Object.assign({}, U, { uW0: { value: P.w0 * 5 }, uSun: { value: 0.7 }, uSpec: { value: 0.3 }, uOpac: { value: 0.85 } });
 function makeTuft(P_, uL, gL, creamAll) {
@@ -429,13 +438,6 @@ let state = 'title', endBy = 'gau', timeLeft = 0, anger = 0, irrit = 0, idleT = 
 let az = -0.72, el = 0.48, zoom = 1, zoomU = 1, headYaw = 0, headPitch = 0;
 function flash(t) { const m = $('msg'); m.textContent = t; m.style.opacity = 1; flashT = 1.2; }
 
-// ---- スティック
-const stick = $('stick'), knob = $('knob'); let st = null;
-stick.addEventListener('pointerdown', e => { st = { id: e.pointerId, x: 0, y: 0 }; stick.setPointerCapture(e.pointerId); moveStick(e); e.stopPropagation(); });
-stick.addEventListener('pointermove', e => { if (st && e.pointerId === st.id) moveStick(e); });
-const endStick = e => { if (st && e.pointerId === st.id) { st = null; knob.style.transform = ''; } };
-stick.addEventListener('pointerup', endStick); stick.addEventListener('pointercancel', endStick);
-function moveStick(e) { const r = stick.getBoundingClientRect(); let x = (e.clientX - r.left - r.width / 2) / (r.width / 2), y = (e.clientY - r.top - r.height / 2) / (r.height / 2); const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; } st.x = x; st.y = y; knob.style.transform = `translate(${x * 30}px,${y * 30}px)`; }
 const keys = {}; addEventListener('keydown', e => { keys[e.key] = true; }); addEventListener('keyup', e => { keys[e.key] = false; });
 
 function resize() {
@@ -529,7 +531,7 @@ let last = performance.now();
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now; tNow += dt;
   if (state === 'play' || state === 'title') {
-    let sx = st ? st.x : 0, sy = st ? st.y : 0;
+    let sx = 0, sy = 0;
     if (keys.ArrowLeft || keys.a) sx = -1; if (keys.ArrowRight || keys.d) sx = 1; if (keys.ArrowUp || keys.w) sy = -1; if (keys.ArrowDown || keys.s) sy = 1;
     if (state === 'title') sx = 0.06;
     az += sx * 2.0 * dt; el = Math.max(0.15, Math.min(1.1, el - sy * 0.9 * dt));
@@ -569,7 +571,7 @@ function startTimeUp() {
 }
 const TITLES = [[0.1, '毛づくろい見習い'], [0.25, 'ブラッシング係'], [0.5, '抜け毛職人'], [0.8, '換毛期の達人'], [1.2, 'もう1匹できた人'], [99, '柴犬製造機']];
 function showResult() {
-  state = 'result'; $('gau').style.opacity = 0; ['stick', 'hud', 'zoom', 'timer'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
+  state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
   const ttl = TITLES.find(t => hiki < t[0])[1];
   $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛`; $('rTtl').textContent = `称号「${ttl}」`;
@@ -616,12 +618,11 @@ function reset() {
 }
 function begin() {
   audioInit(); reset(); state = 'play'; az = -0.72; el = 0.48;
-  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['stick', 'hud', 'snd', 'zoom', 'timer'].forEach(id => $(id).classList.remove('hide'));
+  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'snd', 'timer'].forEach(id => $(id).classList.remove('hide'));
   $('meter').classList.toggle('hide', !G.showMeter);
   flash('毛をつまんで、そっと引っぱってみよう');
 }
 $('go').onclick = begin; $('again').onclick = begin;
-$('zin').onclick = () => { zoomU = Math.max(0.45, zoomU / 1.25); }; $('zout').onclick = () => { zoomU = Math.min(1.2, zoomU * 1.25); };
 addEventListener('wheel', e => { zoomU = Math.max(0.45, Math.min(1.2, zoomU * (1 + e.deltaY * 0.001))); }, { passive: true });
 $('rankBtn').onclick = () => $('rank').classList.toggle('hide');
 $('snd').textContent = muted ? '音 なし' : '音 あり';
