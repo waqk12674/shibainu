@@ -1097,11 +1097,12 @@ function startTimeUp() {
   g.animate([{ transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
   sfx.bonus();
 }
-const TITLES = [[0.1, '毛づくろい見習い'], [0.25, 'ブラッシング係'], [0.5, '抜け毛職人'], [0.8, '換毛期の達人'], [1.2, 'もう1匹できた人'], [99, '柴犬製造機']];
+// 称号は毛玉の直径（cm）で決める（2026-11-22 運営者）
+const TITLES = [[20, '初めての毛づくろい'], [40, '毛づくろい見習い'], [60, '一般的な毛づくろい'], [80, '慣れてきた毛づくろい'], [100, 'プロの毛づくろい'], [Infinity, '伝説の毛づくろい']];
 function showResult() {
   state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer', 'snd'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
-  const ttl = TITLES.find(t => hiki < t[0])[1];
+  const ttl = TITLES.find(t => dia < t[0])[1];
   $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛玉`; $('rTtl').textContent = `称号「${ttl}」`;
   const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛玉ができた！`;
   $('shareX').href = 'https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://waqk.jp/');
