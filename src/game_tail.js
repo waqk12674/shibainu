@@ -1,7 +1,7 @@
 const SND_SRC = __SND__;
 // ================= ゲーム =================
 const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 5, slowSp: 400, moveK: 0.33, holdK: 0.1, time: 60, flEvery: 4.5, flLife: 8, flMax: 2, bonusU: 90, showMeter: false, noAnger: false };
+const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 10, slowSp: 400, moveK: 0.33, holdK: 0.1, time: 60, flEvery: 4.5, flLife: 8, flMax: 2, bonusU: 90, showMeter: false, noAnger: false };
 // 引く速さ（画面の px/秒）→ 痛さの倍率。100px/秒で約0.55、300で約1.05、650で約1.9、1480以上で4
 const spFactor = sp => Math.min(4, 0.3 + sp / G.slowSp);
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };

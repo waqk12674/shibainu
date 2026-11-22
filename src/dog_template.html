@@ -308,15 +308,15 @@ const floorTex = canvasTex(1024, 1024, (g, w, h) => {
 });
 floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(4, 4); floorTex.rotation = 0.35;
 const floor = new THREE.Mesh(new THREE.CircleGeometry(5, 64), new THREE.MeshBasicMaterial({ map: floorTex })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
-// ラグ（毛足の短い生成り色の丸ラグ）
-const rugTex = canvasTex(512, 512, (g, w, h) => {
-  const cx = w / 2; g.fillStyle = '#efe7da'; g.beginPath(); g.arc(cx, cx, cx - 4, 0, Math.PI * 2); g.fill();
-  for (let i = 0; i < 9000; i++) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * (cx - 8); const x = cx + Math.cos(a) * r, y = cx + Math.sin(a) * r; g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.35)' : 'rgba(170,150,125,.18)'; g.fillRect(x, y, 2, 2); }
-  g.strokeStyle = 'rgba(190,170,145,.6)'; g.lineWidth = 6; g.beginPath(); g.arc(cx, cx, cx - 30, 0, Math.PI * 2); g.stroke();
-  g.strokeStyle = 'rgba(190,170,145,.35)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cx, cx - 46, 0, Math.PI * 2); g.stroke();
-});
-const rug = new THREE.Mesh(new THREE.CircleGeometry(0.75, 64), new THREE.MeshBasicMaterial({ map: rugTex, transparent: true }));
-rug.rotation.x = -Math.PI / 2; rug.position.set(0.05, 0.003, 0); scene.add(rug);
+// ラグはなし（床と毛玉の色の差を見せるため。2026-11-22 運営者）。mkgame.py が行番号で切り出すので、行数は変えない
+
+
+
+
+
+
+
+
 // 壁（窓・カーテン・ソファ・観葉植物）
 const WIN = 0.865; // 光の来る向き（LDIR の向き）
 const wallTex = canvasTex(2048, 512, (g, w, h) => {
