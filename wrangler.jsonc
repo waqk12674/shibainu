@@ -2,7 +2,10 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "shibainu",
   "compatibility_date": "2026-10-01",
-  // 公開URLは https://waqk.jp/shibainu/ 。試験中は routes を書かない（書くと waqk.jp/shibainu/* が作られて公開状態になる）
+  // 公開URLは https://waqk.jp/shibainu/ 。waqk.jp/shibainu/* をこの Worker のルートにする（ハブを通さない。手本は dashimaki）。
+  // 届いたパスの先頭の /shibainu は _redirects（/shibainu/* /:splat 200）で外して静的ファイルを返す
+  "routes": [{ "pattern": "waqk.jp/shibainu/*", "zone_name": "waqk.jp" }],
+  // routes を書くと workers.dev が既定で無効になるため、有効にしておく（workers.dev には _headers で noindex）
   "workers_dev": true,
   // ランキングの API（/api/scores）と英語版（/en/）だけを Worker が処理する。それ以外の静的ファイルは Worker を通らない
   // （Workers のリクエストに数えない）。公開するファイルは .assetsignore の許可リストで決める
