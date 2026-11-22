@@ -1,7 +1,9 @@
 const SND_SRC = __SND__;
 // ================= ゲーム =================
 const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 5, showMeter: false, noAnger: false };
+const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 5, slowSp: 400, moveK: 0.33, holdK: 0.1, showMeter: false, noAnger: false };
+// 引く速さ（画面の px/秒）→ 痛さの倍率。100px/秒で約0.55、300で約1.05、650で約1.9、1480以上で4
+const spFactor = sp => Math.min(4, 0.3 + sp / G.slowSp);
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const cv = $('c');
 
@@ -141,13 +143,14 @@ function updateTuft(q, pinchL, stretch) {
 }
 function pullUpdate(dt) {
   if (!pull) return;
-  const q = pull, mx = q.x - q.lx, my = q.y - q.ly, inst = Math.hypot(mx, my) / Math.max(dt, 1e-3);
-  q.sp += (inst - q.sp) * Math.min(1, dt * 10); q.lx = q.x; q.ly = q.y;
+  const q = pull, mx = q.x - q.lx, my = q.y - q.ly, moved = Math.hypot(mx, my), inst = moved / Math.max(dt, 1e-3);
+  q.sp += (inst - q.sp) * Math.min(1, dt * 15); q.lx = q.x; q.ly = q.y;
   const dx = q.x - q.x0, dy = q.y - q.y0, dist = Math.hypot(dx, dy), stretch = dist / q.req;
   const cos = dist > 4 ? (dx * q.fdx + dy * q.fdy) / dist : 1;
-  const dirF = 1.15 - 0.55 * cos, spF = 1 + Math.min(1.5, Math.max(0, (q.sp - 650) / 600));
-  const pain = q.sens * (0.1 + 0.9 * q.tight * q.tight) * dirF * spF;
-  if (!G.noAnger) anger += pain * 0.16 * G.angerK * dt * (0.3 + Math.min(1.2, stretch));
+  // ゆっくり引くほど気づかれにくい：怒りは「指を動かした分 × 速さ」でたまる（時間ではない）。止めて引っぱったままだと少しずつ
+  const dirF = 1.15 - 0.55 * cos; q.spF = spFactor(q.sp);
+  const pain = q.sens * (0.1 + 0.9 * q.tight * q.tight) * dirF;
+  if (!G.noAnger) anger += pain * 0.16 * G.angerK * (G.moveK * (moved / q.req) * q.spF + G.holdK * dt * Math.min(1.2, stretch));
   const rootW = q.P.parent.localToWorld(q.local.clone());
   const pinchW = pointerWorld(q.x, q.y, rootW), pinchL = q.P.parent.worldToLocal(pinchW.clone());
   updateTuft(q, pinchL, Math.min(1, stretch * 1.15));
@@ -156,7 +159,7 @@ function pullUpdate(dt) {
 const flying = [];
 function pop(q, pinchW) {
   const units = q.uL.length + 0.3 * q.gL.length, frac = units / totalUnits;
-  if (!G.noAnger) { anger += (0.03 * q.sens * q.tight + 0.01) * G.angerK; irrit += G.irrit * q.sens * G.angerK; }
+  if (!G.noAnger) { anger += (0.03 * q.sens * q.tight + 0.01) * G.angerK * Math.min(1.6, 0.5 + 0.5 * (q.spF || 1)); irrit += G.irrit * q.sens * G.angerK; }
   plucks++;
   // 地の毛（層）も薄くする
   const bg = q.P.p.base.geometry, bp = bg.attributes.position.array, bd = bg.attributes.aDens.array, R = G.radius * (q.P.name === 'head' ? 0.7 : 1);
@@ -527,7 +530,7 @@ $('rankBtn').onclick = () => $('rank').classList.toggle('hide');
 $('snd').textContent = muted ? '音 なし' : '音 あり';
 $('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').textContent = muted ? '音 なし' : '音 あり'; if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
 // ---- 調整（確認用）
-const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 12, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
+const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['slowSp', '速さの許し（大きいほど速く引いてもバレにくい）', 150, 1000, 10, G],['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 12, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
 $('panel').innerHTML = SPEC.map(([k, l, a, b, s, o]) => `<label>${l}：<b id="v_${k}">${o[k]}</b></label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${o[k]}">`).join('') +
   `<label class="ck"><input type="checkbox" id="c_meter">怒りのメーターを出す</label><label class="ck"><input type="checkbox" id="c_no">怒らない（確認用）</label><button id="b_gau" style="height:32px;margin-top:6px">いま怒らせる</button><div id="info" style="margin-top:6px;color:#8a6a50"></div>`;
 for (const [k, , , , , o] of SPEC) $('i_' + k).oninput = e => { o[k] = +e.target.value; $('v_' + k).textContent = o[k]; if (k === 'dpr') resize(); };
