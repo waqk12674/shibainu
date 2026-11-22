@@ -601,7 +601,7 @@ function makeShot(dia, hiki, ttl) {
   g.font = "700 28px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; const tw = g.measureText(ttl).width;
   g.fillStyle = '#4a2a14'; g.beginPath(); g.roundRect ? g.roundRect(X - tw - 36, 440, tw + 36, 50, 25) : g.rect(X - tw - 36, 440, tw + 36, 50); g.fill();
   g.fillStyle = '#fbf4e8'; g.fillText(ttl, X - 18, 475);
-  g.fillStyle = '#9a7a60'; g.font = "500 24px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('WAQK（ワック）', X, H - 44);
+  g.fillStyle = '#9a7a60'; g.font = "500 24px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('WAQK GAMES（ワックゲームズ）', X, H - 44);
   $('shot').src = c.toDataURL('image/jpeg', 0.88);
 }
 function reset() {
