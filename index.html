@@ -21,8 +21,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 /* 左上：毛玉サイズ・残り時間・音（♪） */
 #hud{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));display:flex;gap:8px;align-items:flex-start}
 #hud .hb{background:rgba(251,244,232,.93);border-radius:14px;padding:7px 14px 8px;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none;white-space:nowrap}
-#dia{font-weight:800;font-size:21px;line-height:1.25;color:var(--shiba)}
-#timer{font-weight:800;font-size:21px;line-height:1.25;color:var(--ink);transform-origin:left center}
+#dia{font-weight:800;font-size:26px;line-height:1.25;color:var(--shiba)}
+#timer{font-weight:800;font-size:26px;line-height:1.25;color:var(--ink);transform-origin:left center}
 #timer.low{color:#d0300f}
 #snd{position:fixed;right:calc(10px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));width:46px;height:46px;border-radius:50%;border:0;background:rgba(251,244,232,.93);font-size:24px;font-weight:800;line-height:46px;padding:0;box-shadow:0 1px 4px rgba(60,40,20,.15)}
 #snd.off{opacity:.45;text-decoration:line-through}
@@ -30,7 +30,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #meter>div{height:100%;width:0;background:linear-gradient(90deg,#e8b070,#c4501d)}#mFloor{position:absolute;top:0;bottom:0;width:2px;background:#3a2416}
 /* ドラッグで回せることを知らせる、上下左右のうっすら点滅する矢印（押せない） */
 #arrows i{position:fixed;font-style:normal;font-size:32px;font-weight:700;line-height:1;color:var(--paper);text-shadow:0 0 2px rgba(60,40,20,.7),0 1px 6px rgba(60,40,20,.5);pointer-events:none;animation:blink 2.4s ease-in-out infinite}
-#arrows .up{top:calc(58px + env(safe-area-inset-top));left:50%;transform:translateX(-50%)}#arrows .dn{bottom:calc(60px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%)}
+#arrows .up{top:calc(104px + env(safe-area-inset-top));left:50%;transform:translateX(-50%)}#arrows .dn{bottom:calc(60px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%)}
 #arrows .lt{left:calc(10px + env(safe-area-inset-left));top:50%;transform:translateY(-50%)}#arrows .rt{right:calc(10px + env(safe-area-inset-right));top:50%;transform:translateY(-50%)}
 @keyframes blink{0%,100%{opacity:.15}50%{opacity:.65}}
 /* メッセージとうなり声は、柴犬の上に出す（位置は毎フレーム JS で合わせる） */
@@ -1076,7 +1076,7 @@ function loop(now) {
   if (flashT > 0) {
     flashT -= dt; if (flashT <= 0) $('msg').style.opacity = 0;
     const s = toScreen(dog.localToWorld(new THREE.Vector3(-0.02, 0.62, 0)));   // 柴犬の上
-    $('msg').style.left = Math.max(100, Math.min(innerWidth - 100, s.x)) + 'px'; $('msg').style.top = Math.max(110, Math.min(innerHeight - 80, s.y)) + 'px';
+    const mw = $('msg').offsetWidth / 2 + 8; $('msg').style.left = Math.max(mw, Math.min(innerWidth - mw, s.x)) + 'px';   // 画面の端からはみ出さない $('msg').style.top = Math.max(110, Math.min(innerHeight - 80, s.y)) + 'px';
   }
   tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
   for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);

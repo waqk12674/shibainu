@@ -572,7 +572,7 @@ function loop(now) {
   if (flashT > 0) {
     flashT -= dt; if (flashT <= 0) $('msg').style.opacity = 0;
     const s = toScreen(dog.localToWorld(new THREE.Vector3(-0.02, 0.62, 0)));   // 柴犬の上
-    $('msg').style.left = Math.max(100, Math.min(innerWidth - 100, s.x)) + 'px'; $('msg').style.top = Math.max(110, Math.min(innerHeight - 80, s.y)) + 'px';
+    const mw = $('msg').offsetWidth / 2 + 8; $('msg').style.left = Math.max(mw, Math.min(innerWidth - mw, s.x)) + 'px';   // 画面の端からはみ出さない $('msg').style.top = Math.max(110, Math.min(innerHeight - 80, s.y)) + 'px';
   }
   tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
   for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);
