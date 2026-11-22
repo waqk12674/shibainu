@@ -334,8 +334,21 @@ function tone(f0, f1, dur, vol, type = 'sine', t0 = 0) {
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + 0.012); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
   o.connect(g); g.connect(AC.master); o.start(t); o.stop(t + dur + 0.05);
 }
+// 息のような雑音：なだらかに立ち上がり、フィルターを f0→f1 へ動かす（毛がこすれて抜ける音）
+function swish(t0, dur, vol, f0, f1, type, q, att) {
+  if (!AC) return; const t = AC.currentTime + t0, s = AC.createBufferSource(); s.buffer = AC.noise;
+  const f = AC.createBiquadFilter(); f.type = type; f.Q.value = q; f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const g = AC.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + att); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  s.connect(f); f.connect(g); g.connect(AC.master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+}
 const sfx = {
-  pluck(big) { noiseHit(3200, 1.2, 0.07, 0.35); tone(320, 140, 0.07, 0.18); if (big) noiseHit(1800, 0.8, 0.12, 0.2, 'bandpass', 0.02); },
+  // ファサッ：「ファ」はやわらかく立ち上がる息、「サッ」は高い音で短く切れる。細かいこすれを散らす
+  pluck(big) {
+    const v = big ? 1 : 0.7, r = 0.9 + Math.random() * 0.2;
+    swish(0, 0.2, 0.2 * v, 1600 * r, 3800 * r, 'bandpass', 0.7, 0.08);
+    swish(0.09, 0.15, 0.16 * v, 5200 * r, 7500 * r, 'highpass', 0.7, 0.025);
+    for (let i = 0; i < 6; i++) noiseHit(3500 + Math.random() * 4000, 2.5, 0.025, 0.04 * v, 'bandpass', 0.02 + Math.random() * 0.17);
+  },
   puff() { noiseHit(900, 0.5, 0.28, 0.12, 'lowpass', 0.45); },
   yelp() { playS('yelp', 0.9, 0.95 + Math.random() * 0.15); },
   bark() { if (playS('bark', 1.0)) return; noiseHit(700, 1.5, 0.22, 0.6); tone(420, 180, 0.2, 0.45, 'square'); tone(260, 120, 0.25, 0.3, 'sawtooth', 0.02); },
