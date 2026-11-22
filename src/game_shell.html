@@ -17,11 +17,15 @@ html,body{margin:0;height:100%;overflow:hidden;background:#efe8de;font-family:sy
 .mincho{font-family:'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif}
 button{font:inherit;color:inherit;cursor:pointer}
 .tb{position:fixed;top:calc(10px + env(safe-area-inset-top));height:36px;padding:0 12px;border-radius:18px;border:0;background:rgba(251,244,232,.9);font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(60,40,20,.15)}
-#adj{right:10px}#snd{right:68px}
-#hud{position:fixed;left:10px;top:calc(10px + env(safe-area-inset-top));background:rgba(251,244,232,.9);border-radius:12px;padding:6px 12px;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none}
-#dia{font-weight:800;font-size:17px;color:var(--shiba)}#hiki{font-size:12px;color:var(--mute);margin-top:1px}
-#timer{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);height:36px;line-height:36px;padding:0 14px;border-radius:18px;background:rgba(251,244,232,.92);font-weight:800;font-size:16px;white-space:nowrap;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none}
-#timer.low{color:#fff;background:var(--shiba)}
+#adj{right:10px}
+/* 左上：毛玉サイズ・残り時間・音（♪） */
+#hud{position:fixed;left:calc(10px + env(safe-area-inset-left));top:calc(10px + env(safe-area-inset-top));display:flex;gap:8px;align-items:flex-start}
+#hud .hb{background:rgba(251,244,232,.93);border-radius:14px;padding:7px 14px 8px;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none;white-space:nowrap}
+#dia{font-weight:800;font-size:21px;line-height:1.25;color:var(--shiba)}
+#timer{font-weight:800;font-size:21px;line-height:1.25;color:var(--ink);transform-origin:left center}
+#timer.low{color:#d0300f}
+#snd{width:46px;height:46px;border-radius:50%;border:0;background:rgba(251,244,232,.93);font-size:24px;font-weight:800;line-height:46px;padding:0;box-shadow:0 1px 4px rgba(60,40,20,.15)}
+#snd.off{opacity:.45;text-decoration:line-through}
 #meter{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));transform:translateX(-50%);width:180px;height:8px;border-radius:4px;background:rgba(251,244,232,.85);overflow:hidden;pointer-events:none}
 #meter>div{height:100%;width:0;background:linear-gradient(90deg,#e8b070,#c4501d)}#mFloor{position:absolute;top:0;bottom:0;width:2px;background:#3a2416}
 /* ドラッグで回せることを知らせる、上下左右のうっすら点滅する矢印（押せない） */
@@ -60,10 +64,8 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
 <canvas id="c"></canvas>
 <div id="red"></div>
 <div id="load">柴犬の毛を並べています…</div>
-<div id="hud" class="hide"><div id="dia">毛玉 直径 0.0cm</div><div id="hiki">柴犬 0.000匹分</div></div>
-<div id="timer" class="hide">残り 60秒</div>
+<div id="hud" class="hide"><div class="hb"><div id="dia">毛玉サイズ 0.0cm</div><div id="timer">残り 60秒</div></div><button id="snd" aria-label="音">♪</button></div>
 <div id="meter" class="hide"><div></div><i id="mFloor"></i></div>
-<button class="tb hide" id="snd">音 あり</button>
 <button class="tb" id="adj">調整</button>
 <div id="arrows" class="hide"><i class="up">△</i><i class="dn">▽</i><i class="lt">◁</i><i class="rt">▷</i></div>
 <div id="msg"></div>
@@ -87,7 +89,7 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
   <div class="card">
     <img id="shot" alt="今回の毛玉と柴犬">
     <div id="rDia">直径 0.0cm</div>
-    <div id="rHiki">柴犬 0.00匹分の毛</div>
+    <div id="rHiki">柴犬 0.00匹分の毛玉</div>
     <div id="rWhy"></div>
     <div id="rTtl">毛づくろい見習い</div>
     <button class="big" id="again">もう一度</button>
@@ -95,7 +97,7 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
       <a class="sub" id="shareX" target="_blank" rel="noopener">X に投稿</a>
       <button class="sub" id="rankBtn">この端末の記録</button>
     </div>
-    <div id="rank" class="hide"><b>この端末の記録（毛の直径）</b><ol id="rankList"></ol><div class="note">記録はこの端末のブラウザにだけ残ります。</div></div>
+    <div id="rank" class="hide"><b>この端末の記録（毛玉の直径）</b><ol id="rankList"></ol><div class="note">記録はこの端末のブラウザにだけ残ります。</div></div>
   </div>
 </div>
 <div id="panel" class="hide"></div>

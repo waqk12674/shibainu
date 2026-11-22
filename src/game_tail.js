@@ -200,7 +200,7 @@ function pop(q, pinchW) {
   if (q.floater) {
     removeFloater(q.floater, false);
     const b = Math.max(0, Math.min(6, Math.round(units / G.bonusU) - 3));
-    if (b) { timeLeft += b; sfx.bonus(); $('timer').animate([{ transform: 'translateX(-50%) scale(1.4)', background: '#ffe2a0' }, { transform: 'translateX(-50%) scale(1)' }], { duration: 600, easing: 'ease-out' }); }
+    if (b) { timeLeft += b; sfx.bonus(); $('timer').animate([{ transform: 'scale(1.35)', color: '#c4501d' }, { transform: 'scale(1)' }], { duration: 600, easing: 'ease-out' }); }
     flash(b ? `ごっそり！ ＋${b}秒` : 'ごっそり！');
   }
 }
@@ -266,9 +266,9 @@ function setStrands(geo, pts, N) {
 function clumpShape(from, N, addV) {
   const R = Math.max(0.012, Math.cbrt(3 * pileV / (4 * Math.PI))), C = ballPos(R);
   const rc = Math.max(0.012, Math.cbrt(3 * addV / (4 * Math.PI)) * 0.85);
-  const a = Math.random() * Math.PI * 2, h = Math.pow(Math.random(), 0.8);            // 上の方ほど少なく、裾を広く
-  const k = Math.max(0, R - rc * 0.5) * (0.8 + 0.2 * Math.random()), sp = Math.sqrt(1 - h * h);
-  const c = new THREE.Vector3(C.x + Math.cos(a) * sp * k * 1.15, Math.max(rc * 0.6, h * k * 1.45 + rc * 0.3), C.z + Math.sin(a) * sp * k * 1.15);
+  // 毛玉は丸く：球の表面のどこか（床に埋まる真下は除く）に付けていく
+  let u; do { u = new THREE.Vector3(Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 2 - 1); } while (u.lengthSq() > 1 || u.lengthSq() < 0.05 || u.y < -0.5 * Math.sqrt(u.lengthSq()));
+  u.normalize(); const c = C.clone().addScaledVector(u, Math.max(0, R - rc * 0.45)); c.y = Math.max(rc * 0.6, c.y);
   const to = new Float32Array(from.length);
   for (let s = 0; s < N; s++) {
     const b = s * PTS * 3;
@@ -339,11 +339,11 @@ function updateFlying(dt) {
 const pileMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, { uW0: { value: P.w0 * 2.2 }, uSun: { value: 0.7 }, uSpec: { value: 0.1 }, uOpac: { value: 1.1 } }), vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const pile = []; let pileV = 0, ballVolShown = 0, ballVolTarget = 0, ballR = 0.006;
 const ballShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false })); ballShadow.rotation.x = -Math.PI / 2; scene.add(ballShadow);
-function ballPos(r) { return new THREE.Vector3(-0.08 - r * 0.3, r * 0.6, -0.36 - r * 1.2); }
+function ballPos(r) { return new THREE.Vector3(-0.08 - r * 0.3, r, -0.36 - r * 1.2); }
 function updateBall(dt) {
   ballVolShown += (ballVolTarget - ballVolShown) * Math.min(1, dt * 6);
   ballR = Math.max(0.006, Math.cbrt(3 * ballVolShown / (4 * Math.PI)));
-  const bp = ballPos(ballR); pileU.uPileC.value.set(bp.x, 0, bp.z); pileU.uPileR.value = ballR * 1.3;
+  const bp = ballPos(ballR); pileU.uPileC.value.copy(bp); pileU.uPileR.value = ballR * 1.15;
   ballShadow.position.set(bp.x, 0.005, bp.z); ballShadow.scale.set(ballR * 3, ballR * 3, 1); ballShadow.visible = ballVolShown > 1e-7;
 }
 
@@ -543,9 +543,9 @@ function loop(now) {
     else if (timeLeft <= 0) startTimeUp();
     else if (pull) idleT = 0; else { idleT += dt; if (idleT > 0.6) anger = Math.max(irrit, anger - G.decay * dt); }
     anger = Math.max(anger, irrit);
-    const dia = ballVolShown > 0 ? Math.cbrt(3 * ballVolShown / (4 * Math.PI)) * 200 : 0, hk = ballVolShown / META.vol;
+    const dia = ballVolShown > 0 ? Math.cbrt(3 * ballVolShown / (4 * Math.PI)) * 200 : 0;
     const tl = Math.max(0, Math.ceil(timeLeft)); $('timer').textContent = `残り ${tl}秒`; $('timer').classList.toggle('low', tl <= 10);
-    $('dia').textContent = `毛玉 直径 ${dia.toFixed(1)}cm`; $('hiki').textContent = `柴犬 ${hk.toFixed(hk < 0.1 ? 3 : 2)}匹分`;
+    $('dia').textContent = `毛玉サイズ ${dia.toFixed(1)}cm`;
     if (G.showMeter) { $('meter').firstChild.style.width = Math.min(100, anger * 100) + '%'; $('mFloor').style.left = Math.min(100, irrit * 100) + '%'; }
   }
   if ((state === 'gau' || state === 'timeup') && performance.now() - gauT > 1600) showResult();
@@ -574,9 +574,9 @@ function showResult() {
   state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
   const ttl = TITLES.find(t => hiki < t[0])[1];
-  $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛`; $('rTtl').textContent = `称号「${ttl}」`;
+  $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛玉`; $('rTtl').textContent = `称号「${ttl}」`;
   $('rWhy').textContent = endBy === 'time' ? '' : `ガウッ！と怒られた（残り${Math.max(0, Math.ceil(timeLeft))}秒）`;
-  const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛を抜いた！`;
+  const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛玉ができた！`;
   $('shareX').href = 'https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://waqk.jp/');
   const rk = LS.get('shiba_rank2', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank2', rk.slice(0, 10));
   $('rankList').innerHTML = rk.slice(0, 10).map(r => `<li><span>直径 ${r.d}cm</span><span>${r.h}匹分</span></li>`).join('');
@@ -585,11 +585,18 @@ function showResult() {
 }
 function makeShot(dia, hiki, ttl) {
   const W = 1200, H = 630, rt = new THREE.WebGLRenderTarget(W, H), cam = new THREE.PerspectiveCamera(30, W / H, 0.02, 30);
-  const tv = Math.tan(15 * Math.PI / 180), a = -0.62, e = 0.3, fv = fitView(a, e, tv * 0.86, tv * W / H * 0.56), d = fv.d, tgt = fv.tgt;
+  const tv = Math.tan(15 * Math.PI / 180), mad = endBy === 'gau';
+  let a = -0.62, e = 0.3, d, tgt;
+  if (mad) { a = -0.42; e = 0.16; d = 0.95; tgt = headP.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, -0.06, 0)); }   // 怒った顔が見えるように、顔の正面寄りから寄る
+  else { const fv = fitView(a, e, tv * 0.86, tv * W / H * 0.56); d = fv.d; tgt = fv.tgt; }
   cam.position.set(tgt.x + Math.cos(e) * Math.cos(a) * d, tgt.y + Math.sin(e) * d, tgt.z + Math.cos(e) * Math.sin(a) * d); cam.lookAt(tgt);
   cam.setViewOffset(W, H, W * 0.2, 0, W, H);
+  // 頭を、この写真のカメラへ向ける（ゲームのカメラが後ろにあっても顔が写る）
+  const keepRot = headP.rotation.clone(); dog.updateMatrixWorld();
+  const cl = dog.worldToLocal(cam.position.clone()).sub(new THREE.Vector3().fromArray(META.hpos));
+  headP.rotation.set(0, Math.max(-1.5, Math.min(1.5, Math.atan2(-cl.z, cl.x))) * (mad ? 1 : 0.8), Math.max(-0.3, Math.min(0.5, Math.atan2(cl.y, Math.hypot(cl.x, cl.z)))) - (mad ? 0.12 : 0.05));
   const keepPx = U.uPx.value; U.uPx.value = 2 * Math.tan(cam.fov * Math.PI / 360) / H;
-  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); U.uPx.value = keepPx;
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); U.uPx.value = keepPx; headP.rotation.copy(keepRot);
   const buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf); rt.dispose();
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), img = g.createImageData(W, H);
   for (let y = 0; y < H; y++) img.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
@@ -597,7 +604,7 @@ function makeShot(dia, hiki, ttl) {
   const grd = g.createLinearGradient(W * 0.52, 0, W, 0); grd.addColorStop(0, 'rgba(251,244,232,0)'); grd.addColorStop(0.25, 'rgba(251,244,232,.9)'); grd.addColorStop(1, 'rgba(251,244,232,.96)');
   g.fillStyle = grd; g.fillRect(W * 0.52, 0, W * 0.48, H); g.textAlign = 'right'; const X = W - 60;
   g.fillStyle = '#7a5a40'; g.font = "700 34px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText('柴犬（換毛期）', X, 96);
-  g.fillStyle = '#8a5a3a'; g.font = "700 30px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('毛 直径', X, 200);
+  g.fillStyle = '#8a5a3a'; g.font = "700 30px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('毛玉 直径', X, 200);
   g.fillStyle = '#c4501d'; g.font = "700 120px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText(`${dia.toFixed(1)}cm`, X, 320);
   g.fillStyle = '#4a2a14'; g.font = "700 48px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText(`柴犬 ${hiki.toFixed(2)}匹分`, X, 400);
   g.font = "700 28px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; const tl = `称号「${ttl}」`, tw = g.measureText(tl).width;
@@ -618,15 +625,16 @@ function reset() {
 }
 function begin() {
   audioInit(); reset(); state = 'play'; az = -0.72; el = 0.48;
-  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'snd', 'timer'].forEach(id => $(id).classList.remove('hide'));
+  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'timer'].forEach(id => $(id).classList.remove('hide'));
   $('meter').classList.toggle('hide', !G.showMeter);
   flash('毛をつまんで、そっと引っぱってみよう');
 }
 $('go').onclick = begin; $('again').onclick = begin;
 addEventListener('wheel', e => { zoomU = Math.max(0.45, Math.min(1.2, zoomU * (1 + e.deltaY * 0.001))); }, { passive: true });
 $('rankBtn').onclick = () => $('rank').classList.toggle('hide');
-$('snd').textContent = muted ? '音 なし' : '音 あり';
-$('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').textContent = muted ? '音 なし' : '音 あり'; if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
+$('snd').classList.toggle('off', muted);
+$('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').classList.toggle('off', muted); if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
+if (!/[?&]debug=1/.test(location.search)) $('adj').classList.add('hide');   // 調整パネルは ?debug=1 のときだけ
 // ---- 調整（確認用）
 const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['slowSp', '速さの許し（大きいほど速く引いてもバレにくい）', 150, 1000, 10, G],['time', '制限時間（秒）', 20, 180, 5, G], ['flEvery', '浮き毛が出る間隔（秒）', 1, 15, 0.5, G], ['flLife', '浮き毛が残る時間（秒）', 3, 20, 0.5, G], ['bonusU', 'ボーナス1秒に要る毛の量', 30, 300, 10, G], ['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 12, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
 $('panel').innerHTML = SPEC.map(([k, l, a, b, s, o]) => `<label>${l}：<b id="v_${k}">${o[k]}</b></label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${o[k]}">`).join('') +
