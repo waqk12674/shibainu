@@ -708,6 +708,12 @@ function drawBoard() {
   const me = ol.querySelector('.me'); ol.scrollTop = me ? me.offsetTop - ol.clientHeight / 2 + me.offsetHeight / 2 : 0;   // 表の中だけ動かす（scrollIntoView はページまで動かす）
 }
 $('rankToggle').onclick = () => rankOpen($('rankBox').classList.contains('hide'));
+// 開始画面のランキング：結果画面の表（#rankBox）をダイアログへ移して見せ、閉じたら結果のカードへ戻す
+$('rankStart').onclick = () => {
+  $('rankSlot').append($('rankBox')); $('rankBox').classList.remove('hide'); $('rkForm').classList.add('hide'); $('rkErr').textContent = '';
+  $('rankDlg').classList.remove('hide'); if (!board || Date.now() > boardT + 864e5) loadBoard(); else drawBoard();
+};
+$('rankDlgClose').onclick = () => { $('rankDlg').classList.add('hide'); $('rankBox').classList.add('hide'); $('res').querySelector('.card').append($('rankBox')); };
 $('tabAll').onclick = () => { rkTab = 'all'; drawBoard(); }; $('tabDay').onclick = () => { rkTab = 'day'; drawBoard(); };
 $('rkForm').onsubmit = async ev => {
   ev.preventDefault(); const name = $('rkName').value.trim(); $('rkErr').textContent = '';

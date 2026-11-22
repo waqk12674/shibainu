@@ -75,7 +75,8 @@ html[data-ui-lang="ja"] [lang="en"], html[data-ui-lang="en"] [lang="ja"]{display
 #start #langBtn{display:none}
 .hub{display:inline-block;margin-top:10px;font-size:13px;color:var(--mute)}
 /* 結果のボタン（全ゲーム共通の2行。手本は corn） */
-#res .card{display:flex;flex-direction:column}
+#res .card,#rankDlg .card{display:flex;flex-direction:column}
+#rankDlg h2{margin:0 0 4px;font-size:24px}
 .acts{display:flex;flex-direction:column;gap:8px;margin-top:4px}
 .acts .row{display:flex;gap:8px;justify-content:center}
 .pill{flex:1 1 0;height:46px;border-radius:23px;border:2px solid var(--ink);background:var(--paper);font-weight:700;font-size:15px;padding:0 8px;white-space:nowrap;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
@@ -165,7 +166,7 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
     <button class="big" id="go" disabled><span lang="ja">読みこみ中…</span><span lang="en">Loading…</span></button>
     <a class="hub" data-waqk-hub-link href="https://waqk.jp/?from=shibainu"><span lang="ja">ほかのゲームを見る</span><span lang="en">More games</span></a>
     <div class="best" id="best"></div>
-    <div><button class="sub" id="langStart" type="button"><span lang="ja">English</span><span lang="en">日本語</span></button></div>
+    <div class="row"><button class="sub" id="rankStart" type="button"><span lang="ja">ランキング</span><span lang="en">Ranking</span></button><button class="sub" id="langStart" type="button"><span lang="ja">English</span><span lang="en">日本語</span></button></div>
   </div>
 </div>
 
@@ -194,6 +195,14 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
       <ol id="rkList"></ol>
       <div class="rk-note"><span lang="ja">デイリーは毎日0時（日本時間）にリセット</span><span lang="en">Daily resets at 0:00 JST</span></div>
     </div>
+  </div>
+</div>
+<!-- 開始画面から開くランキング（結果画面と同じ表をここへ移して見せる。登録の欄は出さない） -->
+<div id="rankDlg" class="ov hide">
+  <div class="card">
+    <h2 class="mincho"><span lang="ja">ランキング</span><span lang="en">Ranking</span></h2>
+    <div id="rankSlot" style="display:contents"></div>
+    <button class="big" id="rankDlgClose" type="button" style="margin-top:10px"><span lang="ja">閉じる</span><span lang="en">Close</span></button>
   </div>
 </div>
 <div id="panel" class="hide"></div>
