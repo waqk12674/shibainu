@@ -200,9 +200,26 @@ function pop(q, pinchW) {
   if (q.floater) {
     removeFloater(q.floater, false);
     const b = Math.max(0, Math.min(6, Math.round(units / G.bonusU) - 3));
-    if (b) { timeLeft += b; sfx.bonus(); $('timer').animate([{ transform: 'scale(1.35)', color: '#c4501d' }, { transform: 'scale(1)' }], { duration: 600, easing: 'ease-out' }); }
-    flash(b ? `ごっそり！ ＋${b}秒` : 'ごっそり！');
+    if (b) { timeLeft += b; bonusHold += b; sfx.bonus(); bonusFly(b, toScreen(pinchW)); }   // 時間はすぐ足し、表示は「＋○秒」が届いてから
+    else flash('ごっそり！');   // ボーナスのときは「＋○秒」だけ（文字が重ならないように）
   }
+}
+// ---- 時間ボーナスの演出：抜いた所から「＋○秒」が左上の残り時間へ飛んでいき、届いたら残り時間が増える
+let bonusHold = 0;
+function bonusFly(b, from) {
+  const el = document.createElement('div'); el.className = 'bfly'; el.textContent = `＋${b}秒`; document.body.appendChild(el);
+  const r = $('timer').getBoundingClientRect(), dx = r.right + 8 - from.x, dy = r.top + r.height / 2 - from.y;
+  el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
+  el.animate([
+    { transform: 'translate(-50%,-50%) scale(.5)', opacity: 0 },
+    { transform: 'translate(-50%,-110%) scale(1.35)', opacity: 1, offset: 0.25 },
+    { transform: 'translate(-50%,-110%) scale(1.2)', opacity: 1, offset: 0.45 },
+    { transform: `translate(${dx}px,${dy}px) translate(0,-50%) scale(.75)`, opacity: 1 }
+  ], { duration: 1100, easing: 'ease-in-out', fill: 'forwards' }).onfinish = () => {
+    bonusHold = Math.max(0, bonusHold - b);
+    $('timer').animate([{ transform: 'scale(1.45)', color: '#c4501d' }, { transform: 'scale(1)' }], { duration: 650, easing: 'ease-out' });
+    el.animate([{ opacity: 1 }, { opacity: 0, transform: `translate(${dx}px,${dy - 24}px) translate(0,-50%) scale(.75)` }], { duration: 700, easing: 'ease-out' }).onfinish = () => el.remove();
+  };
 }
 // ---- 浮き毛：白っぽく浮いた房がときどき出る。数秒で寝てしまう。大きい塊を抜くと時間がのびる
 const floaters = []; let flT = 0;
@@ -547,7 +564,7 @@ function loop(now) {
     else if (pull) idleT = 0; else { idleT += dt; if (idleT > 0.6) anger = Math.max(irrit, anger - G.decay * dt); }
     anger = Math.max(anger, irrit);
     const dia = ballVolShown > 0 ? Math.cbrt(3 * ballVolShown / (4 * Math.PI)) * 200 : 0;
-    const tl = Math.max(0, Math.ceil(timeLeft)); $('timer').textContent = `残り ${tl}秒`; $('timer').classList.toggle('low', tl <= 10);
+    const tl = Math.max(0, Math.ceil(timeLeft - bonusHold)); $('timer').textContent = `残り ${tl}秒`; $('timer').classList.toggle('low', tl <= 10);
     $('dia').textContent = `毛玉サイズ ${dia.toFixed(1)}cm`;
     if (G.showMeter) { $('meter').firstChild.style.width = Math.min(100, anger * 100) + '%'; $('mFloor').style.left = Math.min(100, irrit * 100) + '%'; }
   }
@@ -578,26 +595,25 @@ function startTimeUp() {
 }
 const TITLES = [[0.1, '毛づくろい見習い'], [0.25, 'ブラッシング係'], [0.5, '抜け毛職人'], [0.8, '換毛期の達人'], [1.2, 'もう1匹できた人'], [99, '柴犬製造機']];
 function showResult() {
-  state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
+  state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer', 'snd'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
   const ttl = TITLES.find(t => hiki < t[0])[1];
   $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛玉`; $('rTtl').textContent = `称号「${ttl}」`;
-  $('rWhy').textContent = endBy === 'time' ? '' : `ガウッ！と怒られた（残り${Math.max(0, Math.ceil(timeLeft))}秒）`;
   const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛玉ができた！`;
   $('shareX').href = 'https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://waqk.jp/');
   const rk = LS.get('shiba_rank2', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank2', rk.slice(0, 10));
   $('rankList').innerHTML = rk.slice(0, 10).map(r => `<li><span>直径 ${r.d}cm</span><span>${r.h}匹分</span></li>`).join('');
-  try { makeShot(dia, hiki, ttl); } catch (e) { console.warn(e); }
+  try { makeShot(); } catch (e) { console.warn(e); }
   $('res').classList.remove('hide');
 }
-function makeShot(dia, hiki, ttl) {
+// 結果の画像：犬と毛玉の絵だけ（数字と称号は画像の下に文字で出す。2026-11-22 運営者）
+function makeShot() {
   const W = 1200, H = 630, rt = new THREE.WebGLRenderTarget(W, H), cam = new THREE.PerspectiveCamera(30, W / H, 0.02, 30);
   const tv = Math.tan(15 * Math.PI / 180), mad = endBy === 'gau';
   let a = -0.62, e = 0.3, d, tgt;
   if (mad) { a = -0.42; e = 0.16; d = 0.95; tgt = headP.getWorldPosition(new THREE.Vector3()).add(new THREE.Vector3(0, -0.06, 0)); }   // 怒った顔が見えるように、顔の正面寄りから寄る
-  else { const fv = fitView(a, e, tv * 0.86, tv * W / H * 0.56); d = fv.d; tgt = fv.tgt; }
+  else { const fv = fitView(a, e, tv * 0.86, tv * W / H * 0.9); d = fv.d; tgt = fv.tgt; }
   cam.position.set(tgt.x + Math.cos(e) * Math.cos(a) * d, tgt.y + Math.sin(e) * d, tgt.z + Math.cos(e) * Math.sin(a) * d); cam.lookAt(tgt);
-  cam.setViewOffset(W, H, W * 0.2, 0, W, H);
   // 頭を、この写真のカメラへ向ける（ゲームのカメラが後ろにあっても顔が写る）
   const keepRot = headP.rotation.clone(); dog.updateMatrixWorld();
   const cl = dog.worldToLocal(cam.position.clone()).sub(new THREE.Vector3().fromArray(META.hpos));
@@ -608,16 +624,6 @@ function makeShot(dia, hiki, ttl) {
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), img = g.createImageData(W, H);
   for (let y = 0; y < H; y++) img.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
   g.putImageData(img, 0, 0);
-  const grd = g.createLinearGradient(W * 0.52, 0, W, 0); grd.addColorStop(0, 'rgba(251,244,232,0)'); grd.addColorStop(0.25, 'rgba(251,244,232,.9)'); grd.addColorStop(1, 'rgba(251,244,232,.96)');
-  g.fillStyle = grd; g.fillRect(W * 0.52, 0, W * 0.48, H); g.textAlign = 'right'; const X = W - 60;
-  g.fillStyle = '#7a5a40'; g.font = "700 34px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText('柴犬（換毛期）', X, 96);
-  g.fillStyle = '#8a5a3a'; g.font = "700 30px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('毛玉 直径', X, 200);
-  g.fillStyle = '#c4501d'; g.font = "700 120px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText(`${dia.toFixed(1)}cm`, X, 320);
-  g.fillStyle = '#4a2a14'; g.font = "700 48px 'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif"; g.fillText(`柴犬 ${hiki.toFixed(2)}匹分`, X, 400);
-  g.font = "700 28px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; const tl = `称号「${ttl}」`, tw = g.measureText(tl).width;
-  g.fillStyle = '#4a2a14'; g.beginPath(); g.roundRect ? g.roundRect(X - tw - 36, 440, tw + 36, 50, 25) : g.rect(X - tw - 36, 440, tw + 36, 50); g.fill();
-  g.fillStyle = '#fbf4e8'; g.fillText(tl, X - 18, 475);
-  g.fillStyle = '#9a7a60'; g.font = "500 24px system-ui,'Hiragino Sans','Noto Sans JP',sans-serif"; g.fillText('WAQK GAMES（ワックゲームズ）', X, H - 44);
   $('shot').src = c.toDataURL('image/jpeg', 0.88);
 }
 function reset() {
@@ -626,13 +632,13 @@ function reset() {
     const bd = P_.p.base.geometry.attributes.aDens.array; bd.fill(1); P_.p.base.geometry.attributes.aDens.needsUpdate = true;
   }
   for (const m of [...flying.map(f => f.mesh), ...pile]) { scene.remove(m); if (m.geometry !== blobGeo) m.geometry.dispose(); if (m.material !== pileMat) m.material.dispose(); if (m.geometry === blobGeo) {} } flying.length = 0; pile.length = 0; pileV = 0;
-  shellU.uShellL.value = P.shellL; anger = 0; irrit = 0; plucks = 0; idleT = 0; ballVolTarget = 0; ballVolShown = 0; pull = null; timeLeft = G.time; flT = 2.5; endBy = 'gau'; headYaw = 0; headPitch = 0; zoomU = 1; angry = 0;
+  shellU.uShellL.value = P.shellL; anger = 0; irrit = 0; plucks = 0; idleT = 0; ballVolTarget = 0; ballVolShown = 0; pull = null; timeLeft = G.time; bonusHold = 0; flT = 2.5; endBy = 'gau'; headYaw = 0; headPitch = 0; zoomU = 1; angry = 0;
   for (let i = parts.length - 1; i >= 0; i--) if (parts[i].kind !== 'dust') parts.splice(i, 1);
   while (floaters.length) removeFloater(floaters[0], false);
 }
 function begin() {
   audioInit(); reset(); state = 'play'; az = -0.72; el = 0.48;
-  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'timer'].forEach(id => $(id).classList.remove('hide'));
+  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'timer', 'snd'].forEach(id => $(id).classList.remove('hide'));
   $('meter').classList.toggle('hide', !G.showMeter);
   flash('毛をつまんで、そっと引っぱってみよう');
 }
