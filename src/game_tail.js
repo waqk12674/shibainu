@@ -1,7 +1,7 @@
 const SND_SRC = __SND__;
 // ================= ゲーム =================
 const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 5, slowSp: 400, moveK: 0.33, holdK: 0.1, showMeter: false, noAnger: false };
+const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 5, slowSp: 400, moveK: 0.33, holdK: 0.1, time: 60, flEvery: 4.5, flLife: 8, flMax: 2, bonusU: 90, showMeter: false, noAnger: false };
 // 引く速さ（画面の px/秒）→ 痛さの倍率。100px/秒で約0.55、300で約1.05、650で約1.9、1480以上で4
 const spFactor = sp => Math.min(4, 0.3 + sp / G.slowSp);
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -33,7 +33,7 @@ function pick(e) {
   ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const h = ray.intersectObjects(PARTS.map(p => p.pick))[0]; return h;
 }
-function gather(geo, center, R, prob, list, info) {
+function gather(geo, center, R, prob, list, info, cap = 700) {
   const pos = geo.userData.pos, N = geo.userData.N, alive = geo.attributes.aAlive.array, sens = geo.userData.sens, loose = geo.userData.loose;
   for (let s = 0; s < N; s++) {
     const b = s * PTS * 3, dx = pos[b] - center.x, dy = pos[b + 1] - center.y, dz = pos[b + 2] - center.z, d2 = dx * dx + dy * dy + dz * dz;
@@ -42,7 +42,7 @@ function gather(geo, center, R, prob, list, info) {
     info.tot = (info.tot || 0) + w; if (alive[s * PTS * 2] === 0) continue; info.al = (info.al || 0) + w;
     if (Math.random() > w * prob) continue;
     list.push(s); info.sens += sens ? sens[s] / 255 * 3 : 1; info.loose += loose ? loose[s] / 255 : 0; info.n++;
-    if (list.length > 700) return;
+    if (list.length > cap) return;
   }
 }
 // ---- ピンチでズーム（スマホ）。2本目の指が触れたら抜くのをやめ、指を全部離すまで抜けない
@@ -63,20 +63,22 @@ const endTouch = e => { touches.delete(e.pointerId); if (touches.size === 0) pin
 cv.addEventListener('pointerup', endTouch); cv.addEventListener('pointercancel', endTouch);
 cv.addEventListener('pointerdown', e => {
   if (state !== 'play' || pull || pinch || touches.size > 1) return;
-  const h = pick(e); if (!h) return;
-  const P_ = h.object.userData.part, local = P_.parent.worldToLocal(h.point.clone());
-  // 毛の根元へ寄せる（つかんだ点から面へ）
-  const R = G.radius * (P_.name === 'ear' ? 0.5 : P_.name === 'head' ? 0.7 : 1);
+  const h = pick(e), fs = floaterAt(e.clientX, e.clientY); if (!h && !fs) return;
+  const P_ = fs ? fs.P : h.object.userData.part, local = fs ? fs.c.clone() : P_.parent.worldToLocal(h.point.clone());
+  // 毛の根元へ寄せる（つかんだ点から面へ）。浮き毛は、浮いた先を押しても根元ごとつかむ
+  const flo = fs || (P_.name === 'body' ? floaters.find(f => !f.grab && f.c.distanceTo(local) < f.r * 1.3) : null);
+  if (flo) { flo.grab = true; flo.tuft.mesh.visible = false; setAlive(P_.p.ug, flo.uL, 255); setAlive(P_.p.gg, flo.gL, 255); local.copy(flo.c); }
+  const R = flo ? flo.r : G.radius * (P_.name === 'ear' ? 0.5 : P_.name === 'head' ? 0.7 : 1);
   const ui = { sens: 0, loose: 0, n: 0 }, gi = { sens: 0, loose: 0, n: 0 };
   const uL = [], gL = [];
-  gather(P_.p.ug, local, R, 1.0, uL, ui);
-  gather(P_.p.gg, local, R, 0.35, gL, gi);
+  gather(P_.p.ug, local, R, 1.0, uL, ui, flo ? 3000 : 700);
+  gather(P_.p.gg, local, R, flo ? 0.6 : 0.35, gL, gi, flo ? 3000 : 700);
   const n = ui.n + gi.n;
   // 部位（顔・耳は痛い）と、まわりの毛の残り具合（薄いほど痛い）で敏感さが上がる
   const left = Math.min(1, ((ui.al || 0) + (gi.al || 0)) / Math.max(1e-6, (ui.tot || 0) + (gi.tot || 0)));
   const partK = P_.name === 'ear' ? 1.8 : P_.name === 'head' ? 1.5 : 1;
-  const sens = (n ? (ui.sens + gi.sens) / n : 1.5) * partK * (1 + 2.5 * Math.pow(1 - left, 1.5));
-  const tight = ui.n > 8 ? 1 - ui.loose / ui.n : 0.85;
+  const sens = (n ? (ui.sens + gi.sens) / n : 1.5) * partK * (1 + 2.5 * Math.pow(1 - left, 1.5)) * (flo ? 0.5 : 1);
+  const tight = flo ? 0.05 : ui.n > 8 ? 1 - ui.loose / ui.n : 0.85;   // 浮き毛はするっと抜ける
   // 引く房をつくる
   const tuft = makeTuft(P_, uL, gL);
   // 毛の流れ（画面上の向き）
@@ -86,7 +88,7 @@ cv.addEventListener('pointerdown', e => {
   const rootW = P_.parent.localToWorld(local.clone());
   const fW = P_.parent.localToWorld(local.clone().add(new THREE.Vector3(fx, fy, 0).normalize().multiplyScalar(0.05)));
   const s0 = toScreen(rootW), s1 = toScreen(fW), fl = Math.hypot(s1.x - s0.x, s1.y - s0.y) || 1;
-  pull = { id: e.pointerId, P: P_, local, uL, gL, n, sens, tight, left, tuft, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, sp: 0, fdx: (s1.x - s0.x) / fl, fdy: (s1.y - s0.y) / fl, req: 30 + 105 * Math.pow(tight, 1.3) };
+  pull = { id: e.pointerId, P: P_, local, uL, gL, n, sens, tight, left, tuft, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, sp: 0, fdx: (s1.x - s0.x) / fl, fdy: (s1.y - s0.y) / fl, req: 30 + 105 * Math.pow(tight, 1.3), floater: flo };
   setAlive(P_.p.ug, uL, 0); setAlive(P_.p.gg, gL, 0);
   cv.setPointerCapture(e.pointerId); idleT = 0; audioInit();
 });
@@ -94,12 +96,13 @@ cv.addEventListener('pointermove', e => { if (pull && e.pointerId === pull.id) {
 const endPull = e => {
   if (!pull || e.pointerId !== pull.id) return;
   setAlive(pull.P.p.ug, pull.uL, 255); setAlive(pull.P.p.gg, pull.gL, 255);   // 抜けなかった毛は元に戻る
+  const fl = pull.floater; if (fl) { fl.grab = false; fl.tuft.mesh.visible = true; setAlive(pull.P.p.ug, fl.uL, 0); setAlive(pull.P.p.gg, fl.gL, 0); }
   pull.P.parent.remove(pull.tuft.mesh); pull.tuft.mesh.geometry.dispose(); pull.tuft.mesh.material.dispose(); pull = null;
 };
 cv.addEventListener('pointerup', endPull); cv.addEventListener('pointercancel', endPull);
 
 const tuftU = Object.assign({}, U, { uW0: { value: P.w0 * 5 }, uSun: { value: 0.7 }, uSpec: { value: 0.3 }, uOpac: { value: 0.85 } });
-function makeTuft(P_, uL, gL) {
+function makeTuft(P_, uL, gL, creamAll) {
   // 見た目は1本を4本に増やして、つまんだ束らしく見せる（量の計算は元の本数）
   const src = [...uL.map(s => [P_.p.ug, s, 1]), ...gL.map(s => [P_.p.gg, s, 0])], K = 4;
   const N = src.length * K, pos = new Float32Array(N * PTS * 3), cream = new Uint8Array(N), typ = new Uint8Array(N);
@@ -109,7 +112,7 @@ function makeTuft(P_, uL, gL) {
     for (let k = 0; k < K; k++, i++) {
       const jx = k ? (Math.random() - 0.5) * 0.008 : 0, jy = k ? (Math.random() - 0.5) * 0.008 : 0, jz = k ? (Math.random() - 0.5) * 0.008 : 0, ls = k ? 0.8 + Math.random() * 0.35 : 1;
       for (let p = 0; p < PTS; p++) { const b = i * PTS * 3 + p * 3; for (let c = 0; c < 3; c++) pos[b + c] = o[c] + (o[p * 3 + c] - o[c]) * ls + (c === 0 ? jx : c === 1 ? jy : jz); }
-      cream[i] = cr; typ[i] = t;
+      cream[i] = creamAll == null ? cr : creamAll; typ[i] = t;
     }
   }
   const geo = ribbon(pos, N, 1, cream, null, null);
@@ -169,13 +172,68 @@ function pop(q, pinchW) {
   const N = q.tuft.N, from = new Float32Array(N * PTS * 3), P3 = geo.attributes.position.array, v3 = new THREE.Vector3();
   for (let s = 0; s < N; s++) for (let i = 0; i < PTS; i++) { v3.fromArray(P3, ((s * PTS + i) * 2) * 3).applyMatrix4(mesh.matrixWorld); v3.toArray(from, (s * PTS + i) * 3); }
   scene.add(mesh); mesh.position.set(0, 0, 0); mesh.quaternion.identity(); mesh.scale.set(1, 1, 1);
-  const addV = frac * G.fluff * META.vol; pileV += addV;
+  const addV = frac * G.fluff * META.vol * (q.floater ? 1.5 : 1); pileV += addV;
   const cs = clumpShape(from, N, addV);
   flying.push({ mesh, t: 0, from, to: cs.to, c: cs.c, rc: cs.rc, cur: new Float32Array(from.length), addV });
   for (let i = 0; i < 6 + Math.min(20, q.n / 15); i++) spawn({ kind: 'mote', p: pinchW.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.02 + Math.random() * 0.05, (Math.random() - 0.5) * 0.08), age: 0, life: 2.5 + Math.random() * 2.5, size: 0.003 + Math.random() * 0.004, col: [1, 0.95, 0.85], a: 0.8 });
   pull = null;
   if (q.n < 6) { sfx.empty(); flash('もう抜ける毛がない'); } else { sfx.pluck(frac > 0.002); }
   if (q.sens > 2.6) { flash('キャン…'); sfx.yelp(); } else if (q.left < 0.45) flash('そこはもう毛が薄い…');
+  if (q.floater) {
+    removeFloater(q.floater, false);
+    const b = Math.max(0, Math.min(6, Math.round(units / G.bonusU) - 3));
+    if (b) { timeLeft += b; sfx.bonus(); $('timer').animate([{ transform: 'translateX(-50%) scale(1.4)', background: '#ffe2a0' }, { transform: 'translateX(-50%) scale(1)' }], { duration: 600, easing: 'ease-out' }); }
+    flash(b ? `ごっそり！ ＋${b}秒` : 'ごっそり！');
+  }
+}
+// ---- 浮き毛：白っぽく浮いた房がときどき出る。数秒で寝てしまう。大きい塊を抜くと時間がのびる
+const floaters = []; let flT = 0;
+function spawnFloater() {
+  const P_ = PARTS[0], ug = P_.p.ug, gg = P_.p.gg, N = ug.userData.N, pos = ug.userData.pos, sens = ug.userData.sens, alive = ug.attributes.aAlive.array;
+  for (let tries = 0; tries < 60; tries++) {
+    const s = Math.floor(Math.random() * N), b = s * PTS * 3;
+    if (sens[s] / 255 * 3 > 1.15 || alive[s * PTS * 2] === 0 || ug.userData.cream[s] > 90) continue;   // 背中・首・太ももの赤い毛の所だけ（痛くなく、白い房が目立つ所）
+    const c = new THREE.Vector3(pos[b], pos[b + 1], pos[b + 2]);
+    if (floaters.some(f => f.c.distanceTo(c) < f.r + 0.1)) continue;
+    const r = 0.042 + Math.random() * 0.036, uL = [], gL = [], info = { sens: 0, loose: 0, n: 0 };
+    gather(ug, c, r * 0.9, 0.8, uL, info, 3000); gather(gg, c, r * 0.9, 0.4, gL, info, 3000);
+    if (uL.length < 30) continue;
+    setAlive(ug, uL, 0); setAlive(gg, gL, 0);
+    const n = new THREE.Vector3(pos[b + 3] - pos[b], pos[b + 4] - pos[b + 1], pos[b + 5] - pos[b + 2]).normalize().add(new THREE.Vector3(0, 0.6, 0)).normalize();
+    const tuft = makeTuft(P_, uL, gL, 255); for (let j = 0; j < tuft.off.length; j++) tuft.off[j] *= r / 0.009;   // 先をふわっと広げる
+    floaters.push({ P: P_, c, r, n, uL, gL, tuft, age: 0, ph: Math.random() * 6.28, mt: 0, grab: false });
+    return;
+  }
+}
+// 画面で、浮き毛の根元から先までの線に指が近いか（体からはみ出た先を押したときも取れるように）
+function floaterAt(x, y) {
+  for (const f of floaters) {
+    if (f.grab || !f.tip) continue;
+    const bw = f.P.parent.localToWorld(f.c.clone()), bd = bw.distanceTo(camera.position);   // 体の裏側（見えない所）の浮き毛は取らない
+    ray.set(camera.position, bw.clone().sub(camera.position).normalize());
+    const hit = ray.intersectObjects(PARTS.map(p => p.pick))[0]; if (hit && hit.distance < bd - 0.05) continue;
+    const a = toScreen(bw), b = toScreen(f.P.parent.localToWorld(f.tip.clone()));
+    const vx = b.x - a.x, vy = b.y - a.y, t = Math.max(0, Math.min(1, ((x - a.x) * vx + (y - a.y) * vy) / (vx * vx + vy * vy || 1)));
+    if (Math.hypot(x - a.x - vx * t, y - a.y - vy * t) < Math.max(28, Math.hypot(vx, vy) * 0.6)) return f;
+  }
+  return null;
+}
+function removeFloater(f, restore) {
+  floaters.splice(floaters.indexOf(f), 1);
+  f.P.parent.remove(f.tuft.mesh); f.tuft.mesh.geometry.dispose(); f.tuft.mesh.material.dispose();
+  if (restore) { setAlive(f.P.p.ug, f.uL, 255); setAlive(f.P.p.gg, f.gL, 255); }
+}
+function updateFloaters(dt) {
+  if (state === 'play') { flT -= dt; if (flT <= 0) { if (floaters.length < G.flMax) spawnFloater(); flT = G.flEvery * (0.7 + Math.random() * 0.6); } }
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i]; if (f.grab) continue;
+    f.age += dt;
+    if (f.age >= G.flLife || state !== 'play') { removeFloater(f, true); continue; }
+    const k = sm(0, 0.6, f.age) * sm(G.flLife, G.flLife - 0.9, f.age), w = Math.sin(tNow * 2.1 + f.ph) * 0.006;
+    const tip = f.c.clone().addScaledVector(f.n, 0.035 + 0.45 * f.r).add(new THREE.Vector3(w, 0, w * 0.7));
+    updateTuft(f, tip, 0.85 * k); f.tip = f.c.clone().lerp(tip, 0.85 * k);
+    if ((f.mt -= dt) <= 0 && k > 0.5) { f.mt = 0.25; spawn({ kind: 'mote', p: f.P.parent.localToWorld(tip.clone()), v: new THREE.Vector3((Math.random() - 0.5) * 0.03, 0.02 + Math.random() * 0.03, (Math.random() - 0.5) * 0.03), age: 0, life: 1.6, size: 0.0035, col: [1, 0.97, 0.9], a: 0.8 }); }
+  }
 }
 function setStrands(geo, pts, N) {
   const P3 = geo.attributes.position.array, TA = geo.attributes.aTan.array;
@@ -353,11 +411,12 @@ const sfx = {
   puff() { swish(0, 0.3, 0.045, 2200, 1100, 'bandpass', 0.6, 0.08); },
   yelp() { playS('yelp', 0.9, 0.95 + Math.random() * 0.15); },
   bark() { if (playS('bark', 1.0)) return; noiseHit(700, 1.5, 0.22, 0.6); tone(420, 180, 0.2, 0.45, 'square'); tone(260, 120, 0.25, 0.3, 'sawtooth', 0.02); },
-  empty() { tone(500, 420, 0.08, 0.08); }
+  empty() { tone(500, 420, 0.08, 0.08); },
+  bonus() { tone(880, 1175, 0.18, 0.05); tone(1175, 1568, 0.22, 0.05, 'sine', 0.09); }
 };
 
 // ---- 状態
-let state = 'title', anger = 0, irrit = 0, idleT = 0, plucks = 0, gauT = 0, tNow = 0, shake = 0, flashT = 0;
+let state = 'title', endBy = 'gau', timeLeft = 0, anger = 0, irrit = 0, idleT = 0, plucks = 0, gauT = 0, tNow = 0, shake = 0, flashT = 0;
 let az = -0.72, el = 0.48, zoom = 1, zoomU = 1, headYaw = 0, headPitch = 0;
 function flash(t) { const m = $('msg'); m.textContent = t; m.style.opacity = 1; flashT = 1.2; }
 
@@ -423,7 +482,8 @@ const teeth = new THREE.Group(); headP.add(teeth); teeth.visible = false;
 let angry = 0;
 function tells(dt) {
   const a = anger;
-  angry += ((state === 'gau' || state === 'result' ? 1 : 0) - angry) * Math.min(1, dt * 14);
+  const mad = state === 'gau' || (state === 'result' && endBy === 'gau');
+  angry += ((mad ? 1 : 0) - angry) * Math.min(1, dt * 14);
   U.uAngry.value = angry; teeth.visible = angry > 0.02; teeth.scale.setScalar(0.6 + 0.4 * angry);
   for (const e of eyeG) { e.g.scale.y = 1 - 0.38 * angry; e.g.quaternion.copy(e.q).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), e.s * 0.32 * angry)); }
   const tin = Math.max(sm(0.25, 0.48, a), angry);                                   // 1. 舌が引っこむ（笑顔が消える）
@@ -435,7 +495,7 @@ function tells(dt) {
   const camL = dog.worldToLocal(camera.position.clone()).sub(new THREE.Vector3().fromArray(META.hpos));
   const yawC = Math.max(-1.5, Math.min(1.5, Math.atan2(-camL.z, camL.x))), pitC = Math.max(-0.3, Math.min(0.5, Math.atan2(camL.y, Math.hypot(camL.x, camL.z))));
   let yT, pT;
-  if (state === 'gau' || state === 'result') { yT = yawC; pT = pitC - 0.12; }
+  if (mad) { yT = yawC; pT = pitC - 0.12; }
   else {
     const turn = sm(0.6, 0.95, a);                                  // 4. 振り向く
     let iy = Math.sin(tNow * 0.23) * 0.15, ip = Math.sin(tNow * 0.31) * 0.04 - 0.03;
@@ -465,36 +525,47 @@ function loop(now) {
   }
   if (state === 'play') {
     pullUpdate(dt);
+    timeLeft -= dt;
     if (anger >= 1) startGau();
+    else if (timeLeft <= 0) startTimeUp();
     else if (pull) idleT = 0; else { idleT += dt; if (idleT > 0.6) anger = Math.max(irrit, anger - G.decay * dt); }
     anger = Math.max(anger, irrit);
     const dia = ballVolShown > 0 ? Math.cbrt(3 * ballVolShown / (4 * Math.PI)) * 200 : 0, hk = ballVolShown / META.vol;
+    const tl = Math.max(0, Math.ceil(timeLeft)); $('timer').textContent = `残り ${tl}秒`; $('timer').classList.toggle('low', tl <= 10);
     $('dia').textContent = `毛玉 直径 ${dia.toFixed(1)}cm`; $('hiki').textContent = `柴犬 ${hk.toFixed(hk < 0.1 ? 3 : 2)}匹分`;
     if (G.showMeter) { $('meter').firstChild.style.width = Math.min(100, anger * 100) + '%'; $('mFloor').style.left = Math.min(100, irrit * 100) + '%'; }
   }
-  if (state === 'gau' && performance.now() - gauT > 1600) showResult();
+  if ((state === 'gau' || state === 'timeup') && performance.now() - gauT > 1600) showResult();
   if (flashT > 0) { flashT -= dt; if (flashT <= 0) $('msg').style.opacity = 0; }
-  tells(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
+  tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
   for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
 function startGau() {
-  state = 'gau'; gauT = performance.now(); shake = 0.45; anger = 1;
+  state = 'gau'; endBy = 'gau'; gauT = performance.now(); shake = 0.45; anger = 1;
   if (pull) endPull({ pointerId: pull.id });
   shellU.uShellL.value = P.shellL * 1.25;                           // 毛が逆立つ
-  const g = $('gau'); g.style.opacity = 1; g.animate([{ transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1.15)', opacity: 1, offset: 0.4 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
+  const g = $('gau'); g.textContent = 'ガウッ！'; g.style.opacity = 1; g.animate([{ transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1.15)', opacity: 1, offset: 0.4 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
   sfx.bark(); $('red').style.opacity = 1;
+}
+function startTimeUp() {
+  state = 'timeup'; endBy = 'time'; gauT = performance.now(); anger = 0;   // 時間切れ：犬は落ち着いたまま
+  if (pull) endPull({ pointerId: pull.id });
+  const g = $('gau'); g.textContent = 'そこまで！'; g.style.opacity = 1;
+  g.animate([{ transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
+  sfx.bonus();
 }
 const TITLES = [[0.1, '毛づくろい見習い'], [0.25, 'ブラッシング係'], [0.5, '抜け毛職人'], [0.8, '換毛期の達人'], [1.2, 'もう1匹できた人'], [99, '柴犬製造機']];
 function showResult() {
-  state = 'result'; $('gau').style.opacity = 0; ['stick', 'hud', 'zoom'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
+  state = 'result'; $('gau').style.opacity = 0; ['stick', 'hud', 'zoom', 'timer'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
   const ttl = TITLES.find(t => hiki < t[0])[1];
   $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛玉`; $('rTtl').textContent = ttl;
+  $('rWhy').textContent = endBy === 'time' ? '時間いっぱい抜ききった！' : `ガウッ！と怒られた（残り${Math.max(0, Math.ceil(timeLeft))}秒）`;
   const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛玉ができた！`;
   $('shareX').href = 'https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://waqk.jp/');
-  const rk = LS.get('shiba_rank', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank', rk.slice(0, 10));
+  const rk = LS.get('shiba_rank2', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank2', rk.slice(0, 10));
   $('rankList').innerHTML = rk.slice(0, 10).map(r => `<li><span>直径 ${r.d}cm</span><span>${r.h}匹分</span></li>`).join('');
   try { makeShot(dia, hiki, ttl); } catch (e) { console.warn(e); }
   $('res').classList.remove('hide');
@@ -528,12 +599,13 @@ function reset() {
     const bd = P_.p.base.geometry.attributes.aDens.array; bd.fill(1); P_.p.base.geometry.attributes.aDens.needsUpdate = true;
   }
   for (const m of [...flying.map(f => f.mesh), ...pile]) { scene.remove(m); if (m.geometry !== blobGeo) m.geometry.dispose(); if (m.material !== pileMat) m.material.dispose(); if (m.geometry === blobGeo) {} } flying.length = 0; pile.length = 0; pileV = 0;
-  shellU.uShellL.value = P.shellL; anger = 0; irrit = 0; plucks = 0; idleT = 0; ballVolTarget = 0; ballVolShown = 0; pull = null; headYaw = 0; headPitch = 0; zoomU = 1; angry = 0;
+  shellU.uShellL.value = P.shellL; anger = 0; irrit = 0; plucks = 0; idleT = 0; ballVolTarget = 0; ballVolShown = 0; pull = null; timeLeft = G.time; flT = 2.5; endBy = 'gau'; headYaw = 0; headPitch = 0; zoomU = 1; angry = 0;
   for (let i = parts.length - 1; i >= 0; i--) if (parts[i].kind !== 'dust') parts.splice(i, 1);
+  while (floaters.length) removeFloater(floaters[0], false);
 }
 function begin() {
   audioInit(); reset(); state = 'play'; az = -0.72; el = 0.48;
-  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['stick', 'hud', 'snd', 'zoom'].forEach(id => $(id).classList.remove('hide'));
+  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['stick', 'hud', 'snd', 'zoom', 'timer'].forEach(id => $(id).classList.remove('hide'));
   $('meter').classList.toggle('hide', !G.showMeter);
   flash('毛をつまんで、そっと引っぱってみよう');
 }
@@ -544,7 +616,7 @@ $('rankBtn').onclick = () => $('rank').classList.toggle('hide');
 $('snd').textContent = muted ? '音 なし' : '音 あり';
 $('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').textContent = muted ? '音 なし' : '音 あり'; if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
 // ---- 調整（確認用）
-const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['slowSp', '速さの許し（大きいほど速く引いてもバレにくい）', 150, 1000, 10, G],['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 12, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
+const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['slowSp', '速さの許し（大きいほど速く引いてもバレにくい）', 150, 1000, 10, G],['time', '制限時間（秒）', 20, 180, 5, G], ['flEvery', '浮き毛が出る間隔（秒）', 1, 15, 0.5, G], ['flLife', '浮き毛が残る時間（秒）', 3, 20, 0.5, G], ['bonusU', 'ボーナス1秒に要る毛の量', 30, 300, 10, G], ['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 12, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
 $('panel').innerHTML = SPEC.map(([k, l, a, b, s, o]) => `<label>${l}：<b id="v_${k}">${o[k]}</b></label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${o[k]}">`).join('') +
   `<label class="ck"><input type="checkbox" id="c_meter">怒りのメーターを出す</label><label class="ck"><input type="checkbox" id="c_no">怒らない（確認用）</label><button id="b_gau" style="height:32px;margin-top:6px">いま怒らせる</button><div id="info" style="margin-top:6px;color:#8a6a50"></div>`;
 for (const [k, , , , , o] of SPEC) $('i_' + k).oninput = e => { o[k] = +e.target.value; $('v_' + k).textContent = o[k]; if (k === 'dpr') resize(); };
@@ -563,8 +635,8 @@ function autoPluck(n) {   // 確認用：体のあちこちから自動で抜く
     flying[flying.length - 1].t = 0.999;
   }
 }
-window.__game = { P, G, begin, auto: autoPluck,  zoom: v => { zoomU = v; }, cam: (a, e) => { az = a; el = e; }, info: () => ({ plucks, irrit, pull: !!pull, ballR }), state: () => state, anger: v => (v == null ? anger : (anger = v)), ball: () => ballVolTarget, pickAt: (x, y) => !!pick({ clientX: x, clientY: y }) };
+window.__game = { P, G, begin, fl: () => floaters, cam3: () => camera, auto: autoPluck,  zoom: v => { zoomU = v; }, cam: (a, e) => { az = a; el = e; }, info: () => ({ plucks, irrit, pull: !!pull, ballR, timeLeft, floaters: floaters.map(f => ({ r: f.r, age: f.age, c: f.P.parent.localToWorld(f.c.clone()).toArray() })) }), state: () => state, anger: v => (v == null ? anger : (anger = v)), ball: () => ballVolTarget, pickAt: (x, y) => !!pick({ clientX: x, clientY: y }) };
 $('load').remove(); requestAnimationFrame(loop);
 const go = $('go'); go.disabled = false; go.textContent = 'はじめる';
-{ const rk = LS.get('shiba_rank', []); if (rk.length) $('best').textContent = `この端末の最高：毛玉 直径 ${rk[0].d}cm（柴犬${rk[0].h}匹分）`; }
+{ const rk = LS.get('shiba_rank2', []); if (rk.length) $('best').textContent = `この端末の最高：毛玉 直径 ${rk[0].d}cm（柴犬${rk[0].h}匹分）`; }
 }

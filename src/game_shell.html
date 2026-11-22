@@ -20,6 +20,8 @@ button{font:inherit;color:inherit;cursor:pointer}
 #adj{right:10px}#snd{right:68px}
 #hud{position:fixed;left:10px;top:calc(10px + env(safe-area-inset-top));background:rgba(251,244,232,.9);border-radius:12px;padding:6px 12px;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none}
 #dia{font-weight:800;font-size:17px;color:var(--shiba)}#hiki{font-size:12px;color:var(--mute);margin-top:1px}
+#timer{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top));transform:translateX(-50%);height:36px;line-height:36px;padding:0 14px;border-radius:18px;background:rgba(251,244,232,.92);font-weight:800;font-size:16px;white-space:nowrap;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none}
+#timer.low{color:#fff;background:var(--shiba)}
 #meter{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));transform:translateX(-50%);width:180px;height:8px;border-radius:4px;background:rgba(251,244,232,.85);overflow:hidden;pointer-events:none}
 #meter>div{height:100%;width:0;background:linear-gradient(90deg,#e8b070,#c4501d)}#mFloor{position:absolute;top:0;bottom:0;width:2px;background:#3a2416}
 #stick{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(60px + env(safe-area-inset-bottom));width:104px;height:104px;border-radius:50%;background:rgba(251,244,232,.55);border:2px solid rgba(251,244,232,.9);box-shadow:0 2px 8px rgba(60,40,20,.15);touch-action:none}
@@ -44,6 +46,7 @@ h1{margin:0;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
 .best{margin-top:10px;font-size:12px;color:var(--mute)}
 #shot{width:100%;border-radius:10px;display:block;margin:0 0 12px;background:#e9dfd0;aspect-ratio:1200/630}
 #rDia{font-size:40px;font-weight:900;color:var(--shiba);line-height:1.1}#rHiki{font-size:16px;font-weight:700;margin-top:2px}
+#rWhy{font-size:13px;color:var(--mute);margin-top:4px}
 #rTtl{display:inline-block;margin:10px 0 14px;background:var(--ink);color:var(--paper);padding:5px 14px;border-radius:14px;font-weight:700;font-size:14px}
 .row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 #rank{margin-top:12px;text-align:left}#rank ol{margin:6px 0 0;padding-left:22px;font-size:13px}#rank li{padding:3px 0;border-bottom:1px dashed #e2d3bd}#rank li span{display:inline-block;min-width:110px}
@@ -58,6 +61,7 @@ h1{margin:0;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
 <div id="red"></div>
 <div id="load">柴犬の毛を並べています…</div>
 <div id="hud" class="hide"><div id="dia">毛玉 直径 0.0cm</div><div id="hiki">柴犬 0.000匹分</div></div>
+<div id="timer" class="hide">残り 60秒</div>
 <div id="meter" class="hide"><div></div><i id="mFloor"></i></div>
 <button class="tb hide" id="snd">音 あり</button>
 <button class="tb" id="adj">調整</button>
@@ -71,10 +75,10 @@ h1{margin:0;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
     <h1 class="mincho">柴犬<small>（換毛期）</small></h1>
     <p class="lead">換毛期の柴犬から、毛を抜けるだけ抜こう。<br>抜いた毛は、横で毛玉になっていく。</p>
     <ul class="rules">
-      <li data-n="1">毛を<b>つまんで、引っぱる</b>と抜ける。白っぽく浮いた毛ほど、するっと抜ける。</li>
+      <li data-n="1">毛を<b>つまんで、引っぱる</b>と抜ける。白く<b>浮いた毛</b>はごっそり抜けて、大きい塊なら<b>時間がのびる</b>。</li>
       <li data-n="2">しっかり生えた毛や顔まわり・しっぽは<b>痛い</b>。毛の流れに逆らうのも痛い。<b>ゆっくり</b>引けば、気づかれにくい。</li>
       <li data-n="3">舌がしまわれる、耳が寝る、白目、振り向く、うなる……は<b>怒る前のサイン</b>。手を止めると落ち着く。</li>
-      <li data-n="4"><b>ガウッ！</b>と怒られたら、そこで終わり。</li>
+      <li data-n="4">制限時間は<b>60秒</b>。<b>ガウッ！</b>と怒られたら、そこで終わり。</li>
     </ul>
     <button class="big" id="go" disabled>読みこみ中…</button>
     <div class="best" id="best"></div>
@@ -86,6 +90,7 @@ h1{margin:0;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
     <img id="shot" alt="今回の毛玉と柴犬">
     <div id="rDia">直径 0.0cm</div>
     <div id="rHiki">柴犬 0.00匹分の毛玉</div>
+    <div id="rWhy"></div>
     <div id="rTtl">毛づくろい見習い</div>
     <button class="big" id="again">もう一度</button>
     <div class="row">
