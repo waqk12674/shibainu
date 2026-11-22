@@ -948,7 +948,7 @@ float hh(vec3 p){ p=fract(p*0.3183+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+
 float nz(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f); return mix(mix(mix(hh(i),hh(i+vec3(1,0,0)),f.x),mix(hh(i+vec3(0,1,0)),hh(i+vec3(1,1,0)),f.x),f.y),mix(mix(hh(i+vec3(0,0,1)),hh(i+vec3(1,0,1)),f.x),mix(hh(i+vec3(0,1,1)),hh(i+vec3(1,1,1)),f.x),f.y),f.z); }
 void main(){ vec3 q = position * 1.6 + uSeed; float d = (nz(q) - 0.5) * 0.45 + (nz(q * 2.7) - 0.5) * 0.3 + (nz(q * 6.0) - 0.5) * 0.15; vec3 p = position * (1.0 + d);
   vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(p, 1.0); vW = w.xyz; vP = p; gl_Position = projectionMatrix * viewMatrix * w; }`;
-const cottonFS = `precision highp float; uniform vec3 uL, uF, uPileC; uniform float uPileR, uSoft; varying vec3 vN, vW, vP;
+const cottonFS = `precision highp float; uniform vec3 uL, uF, uPileC; uniform float uPileR, uSoft, uFade; varying vec3 vN, vW, vP;
 float hh(vec3 p){ p=fract(p*0.3183+0.1); p*=17.0; return fract(p.x*p.y*p.z*(p.x+p.y+p.z)); }
 float nz(vec3 x){ vec3 i=floor(x), f=fract(x); f=f*f*(3.0-2.0*f); return mix(mix(mix(hh(i),hh(i+vec3(1,0,0)),f.x),mix(hh(i+vec3(0,1,0)),hh(i+vec3(1,1,0)),f.x),f.y),mix(mix(hh(i+vec3(0,0,1)),hh(i+vec3(1,0,1)),f.x),mix(hh(i+vec3(0,1,1)),hh(i+vec3(1,1,1)),f.x),f.y),f.z); }
 void main(){
@@ -964,10 +964,12 @@ void main(){
   float l = 0.86 + 0.16 * clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0) + 0.08 * clamp(dot(N, uF) * 0.5 + 0.5, 0.0, 1.0);   // 陰を弱くして、丸い塊の並びに見せない
   vec3 c = col * l * ao * 1.04;
   float a = 1.0;
-  if (uSoft > 0.5) { float ed = abs(dot(N, V)); a = smoothstep(0.0, 0.9, ed) * smoothstep(0.25, 0.95, fib) * 0.9; c *= 1.04; if (a < 0.02) discard; }
+  // 犬を隠すときは透かす（中身は点々に抜いて、並べ替えなしで透ける）
+  if (uSoft < 0.5 && uFade < 0.999 && fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))) > uFade) discard;
+  if (uSoft > 0.5) { float ed = abs(dot(N, V)); a = smoothstep(0.0, 0.9, ed) * smoothstep(0.25, 0.95, fib) * 0.9 * uFade; c *= 1.04; if (a < 0.02) discard; }
   gl_FragColor = vec4(c, a);
 }`;
-const pileU = { uPileC: { value: new THREE.Vector3() }, uPileR: { value: 0.05 } };
+const pileU = { uPileC: { value: new THREE.Vector3() }, uPileR: { value: 0.05 }, uFade: { value: 1 } };
 function cottonMat(soft, seed) { return new THREE.ShaderMaterial({ uniforms: Object.assign({ uSeed: { value: seed }, uSoft: { value: soft } }, pileU, U), vertexShader: cottonVS, fragmentShader: cottonFS, transparent: !!soft, depthWrite: !soft, side: soft ? THREE.FrontSide : THREE.FrontSide }); }
 function addCotton(c, rc) {
   const seed = Math.random() * 50, out = [];
@@ -1114,8 +1116,10 @@ function fitView(az, el, tanV, tanH, dogC) {   // dogC: 回す中心を犬にす
   for (const x of [-0.42, 0.52]) for (const y of [0, 0.42]) for (const z of [-0.16, 0.16]) pts.push(new THREE.Vector3(x, y, z));
   if (ballVolShown > 1e-6) { const bp = ballPos(ballR); for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) pts.push(bp.clone().add(new THREE.Vector3(dx, dy, dz).multiplyScalar(ballR * 1.15))); }
   const tgt = new THREE.Box3().setFromPoints(dogC ? pts.slice(0, 8) : pts).getCenter(new THREE.Vector3());
-  let d = 0.5;
-  for (const p of pts) { const q = p.clone().sub(tgt), a = q.dot(rt), b = q.dot(up), c = q.dot(f); d = Math.max(d, Math.abs(a) / tanH - c, Math.abs(b) / tanV - c); }
+  let d = 0.5, dDog = 0.5;
+  pts.forEach((p, i) => { const q = p.clone().sub(tgt), a = q.dot(rt), b = q.dot(up), c = q.dot(f), v = Math.max(Math.abs(a) / tanH - c, Math.abs(b) / tanV - c); d = Math.max(d, v); if (i < 8) dDog = Math.max(dDog, v); });
+  // 遊ぶときは、毛玉を入れるために引きすぎない（縦長のスマホで犬が小さくなりすぎるため。毛玉ははみ出してよい）
+  if (dogC) d = Math.min(d, dDog * 1.4);
   return { tgt, d, ce };
 }
 function camUpdate(dt) {
@@ -1127,7 +1131,16 @@ function camUpdate(dt) {
   camera.position.set(T.x + ce * Math.cos(az) * D, T.y + Math.sin(el) * D, T.z + ce * Math.sin(az) * D);
   if (shake > 0) { shake -= dt; camera.position.x += (Math.random() - 0.5) * shake * 0.08; camera.position.y += (Math.random() - 0.5) * shake * 0.08; }
   camera.lookAt(T);
+  // 毛玉がカメラと犬の間に入ったら透かす（毛玉の側から見ても犬が見えるように。2026-11-23 運営者）
+  let k = 0;
+  if (ballVolShown > 1e-6) {
+    const C = ballPos(ballR), cp = camera.position, dir = T.clone().sub(cp), L = dir.length(); dir.divideScalar(L);
+    const t = C.clone().sub(cp).dot(dir);
+    if (t > 0 && t < L) k = Math.max(0, Math.min(1, (ballR + 0.32 - C.distanceTo(cp.clone().addScaledVector(dir, t))) / (0.25 + 0.3 * ballR)));
+  }
+  setFade(pileU.uFade.value + ((k > 0.25 ? 0 : 1) - pileU.uFade.value) * Math.min(1, dt * 8));   // 隠すときは完全に消す
 }
+function setFade(f) { pileU.uFade.value = f; pileMat.uniforms.uOpac.value = 1.1 * f; ballShadow.material.opacity = f; pile.forEach(m => { m.visible = f > 0.01; }); }
 // ---- 怒る前のサイン
 const tg0 = { p: tongue.position.clone(), s: tongue.scale.clone() };
 // 怒った顔：目を細めて目じりを上げる、歯をむく
@@ -1260,8 +1273,8 @@ function makeShot() {
   const keepRot = headP.rotation.clone(); dog.updateMatrixWorld();
   const cl = dog.worldToLocal(cam.position.clone()).sub(new THREE.Vector3().fromArray(META.hpos));
   headP.rotation.set(0, Math.max(-1.5, Math.min(1.5, Math.atan2(-cl.z, cl.x))) * (mad ? 1 : 0.8), Math.max(-0.3, Math.min(0.5, Math.atan2(cl.y, Math.hypot(cl.x, cl.z)))) - (mad ? 0.12 : 0.05));
-  const keepPx = U.uPx.value; U.uPx.value = 2 * Math.tan(cam.fov * Math.PI / 360) / H;
-  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); U.uPx.value = keepPx; headP.rotation.copy(keepRot);
+  const keepPx = U.uPx.value, keepF = pileU.uFade.value; U.uPx.value = 2 * Math.tan(cam.fov * Math.PI / 360) / H; setFade(1);
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); U.uPx.value = keepPx; headP.rotation.copy(keepRot); setFade(keepF);
   const buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf); rt.dispose();
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), img = g.createImageData(W, H);
   for (let y = 0; y < H; y++) img.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
