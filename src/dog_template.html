@@ -120,7 +120,7 @@ uniform vec3 uL, uF; uniform float uSpec, uBack, uOpac, uSun;
 varying vec3 vT, vN, vV; varying float vt, vCov, vRnd, vType, vCream, vY, vAO, vDist, vK;
 void main(){
   vec3 T = normalize(vT), V = normalize(vV), N = normalize(vN);
-  vec3 cream = vec3(0.96, 0.92, 0.86), red = vec3(0.97, 0.60, 0.29), tip = vec3(0.86, 0.48, 0.20);
+  vec3 cream = vec3(0.96, 0.92, 0.86), red = vec3(0.929, 0.611, 0.344), tip = vec3(0.818, 0.492, 0.251);
   vec3 col; float ao;
   if (vType < 0.5) {
     vec3 rc = mix(mix(vec3(0.98,0.88,0.74), red, smoothstep(0.05, 0.45, vt)), tip, smoothstep(0.75, 1.0, vt) * 0.35);
@@ -128,7 +128,7 @@ void main(){
     col = mix(rc, cc, vCream);
     ao = mix(0.72, 1.0, smoothstep(0.0, 0.6, vt));
   } else if (vType < 1.5) {
-    col = mix(vec3(0.95, 0.76, 0.52), vec3(0.99, 0.97, 0.94), vCream) * (0.84 + 0.16 * vt);
+    col = mix(vec3(0.928, 0.764, 0.558), vec3(0.99, 0.97, 0.94), vCream) * (0.84 + 0.16 * vt);
     ao = mix(0.6, 0.95, vt);
   } else {
     col = vec3(0.10, 0.085, 0.075); ao = 1.0;
@@ -163,7 +163,7 @@ void main(){
 const strandMat = () => new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const baseMat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide,
   vertexShader: `attribute float aCream; attribute float aAO; attribute float aK; varying float vC, vA, vK; varying vec3 vN; void main(){ vC = aCream; vA = aAO; vK = aK; vN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.0); }`,
-  fragmentShader: `uniform vec3 uL, uF; varying float vC, vA, vK; varying vec3 vN; void main(){ vec3 N = normalize(vN); float l = clamp(dot(N,uL)*0.5+0.5,0.,1.)*0.5 + clamp(dot(N,uF)*0.5+0.5,0.,1.)*0.5; vec3 c = mix(vec3(0.97,0.60,0.30), vec3(1.0,0.98,0.95), vC); gl_FragColor = vec4(mix(c*(0.75+0.25*l)*mix(vA, 1.0, 0.6*vC), vec3(0.06,0.045,0.04)*(0.7+0.6*l), vK), 1.0); }` });
+  fragmentShader: `uniform vec3 uL, uF; varying float vC, vA, vK; varying vec3 vN; void main(){ vec3 N = normalize(vN); float l = clamp(dot(N,uL)*0.5+0.5,0.,1.)*0.5 + clamp(dot(N,uF)*0.5+0.5,0.,1.)*0.5; vec3 c = mix(vec3(0.929,0.611,0.353), vec3(1.0,0.98,0.95), vC); gl_FragColor = vec4(mix(c*(0.75+0.25*l)*mix(vA, 1.0, 0.6*vC), vec3(0.06,0.045,0.04)*(0.7+0.6*l), vK), 1.0); }` });
 
 
 // ---- 地の毛：短く細かい毛の層（体の面を少しずつふくらませて重ねる）
@@ -191,7 +191,7 @@ void main(){
   float a = max(fib(q, vH), fib(q*1.73+7.3, vH) * 0.85);
   a *= uShellA * (1.0 - vH * 0.6) * smoothstep(0.05, 0.4, abs(dot(normalize(vN), normalize(vV))));
   if (a < 0.03) discard;
-  vec3 red = vec3(0.97, 0.62, 0.32), cream = vec3(1.0, 0.98, 0.95);
+  vec3 red = vec3(0.931, 0.63, 0.372), cream = vec3(1.0, 0.98, 0.95);
   vec3 col = mix(red, cream, vC) * mix(mix(0.66, 0.84, vC), 1.03, vH);
   vec3 N = normalize(vN);
   col *= mix(1.0, 0.86, smoothstep(0.85, 0.99, N.y) * (1.0 - vC)) * mix(0.8, 1.0, smoothstep(-0.6, 0.1, N.y));
@@ -267,7 +267,7 @@ const lidMat = new THREE.MeshBasicMaterial({ color: 0x0b0806 });
 for (let ei = 0; ei < 2; ei++) {
   const dir = new THREE.Vector3().fromArray(META.eyeDir[ei]);
   const c = new THREE.Vector3().fromArray(META.eyes[ei]);
-  const eg = new THREE.Group(); eg.position.copy(c); eg.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir); eg.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(ei === 0 ? 1 : -1) * 0.26)); headP.add(eg);
+  const eg = new THREE.Group(); eg.position.copy(c); eg.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir); eg.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(ei === 0 ? 1 : -1) * 0.26)); eg.scale.setScalar(1.2); headP.add(eg);   // 目を少し大きく（2026-11-23 運営者）
   const ball = new THREE.Mesh(new THREE.SphereGeometry(META.eyeR, 32, 24), eyeMat); ball.scale.set(1, 0.62, 1); eg.add(ball);
   const lid = new THREE.Mesh(new THREE.TorusGeometry(META.eyeR * 0.98, 0.0019, 10, 40), lidMat); lid.rotation.y = Math.PI / 2; lid.scale.set(1, 0.62, 1); lid.position.x = META.eyeR * 0.36; eg.add(lid);
 }

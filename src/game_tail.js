@@ -351,12 +351,14 @@ void main(){
   vec3 N = normalize(vN), V = normalize(cameraPosition - vW);
   if (dot(N, V) < 0.0) N = -N;
   float fib = nz(vW * 900.0) * 0.5 + nz(vW * vec3(2300.0, 700.0, 1900.0)) * 0.35 + nz(vW * 240.0) * 0.4;
-  vec3 col = vec3(0.86, 0.75, 0.59) * (0.86 + 0.22 * fib) * mix(vec3(1.0), vec3(1.04, 1.0, 0.95), nz(vW * 60.0));
+  // 白と、ごくわずかに茶色い毛の2色。ゆるいノイズで混ぜて境を見せない（2026-11-23 運営者）
+  float mx = smoothstep(0.2, 0.8, nz(vW * 16.0 + 3.0) * 0.55 + nz(vW * 48.0) * 0.3 + fib * 0.15);
+  vec3 col = mix(vec3(0.97, 0.955, 0.93), vec3(0.90, 0.78, 0.64), mx * 0.8) * (0.9 + 0.14 * fib);
   vec3 out_ = normalize(vW - uPileC); float crev = smoothstep(-0.4, 0.6, dot(N, out_));
   float depth = smoothstep(0.35, 1.0, length(vW - uPileC) / max(uPileR, 0.01));
-  float ao = mix(0.76, 1.0, crev * 0.3 + depth * 0.7) * mix(0.72, 1.0, smoothstep(0.0, 0.06, vW.y));
-  float l = 0.62 + 0.3 * clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0) + 0.18 * clamp(dot(N, uF) * 0.5 + 0.5, 0.0, 1.0);
-  vec3 c = col * l * ao * 1.12;
+  float ao = mix(0.88, 1.0, crev * 0.3 + depth * 0.7) * mix(0.8, 1.0, smoothstep(0.0, 0.06, vW.y));
+  float l = 0.86 + 0.16 * clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0) + 0.08 * clamp(dot(N, uF) * 0.5 + 0.5, 0.0, 1.0);   // 陰を弱くして、丸い塊の並びに見せない
+  vec3 c = col * l * ao * 1.04;
   float a = 1.0;
   if (uSoft > 0.5) { float ed = abs(dot(N, V)); a = smoothstep(0.0, 0.9, ed) * smoothstep(0.25, 0.95, fib) * 0.9; c *= 1.04; if (a < 0.02) discard; }
   gl_FragColor = vec4(c, a);
@@ -381,7 +383,7 @@ function updateFlying(dt) {
     if (t >= 1) {
       const g = f.mesh.geometry; setStrands(g, f.to, g.userData.N);
       const TA = g.attributes.aTan.array, RT = g.attributes.aRT.array;
-      for (let s = 0; s < g.userData.N; s++) { const cr = Math.round((0.32 + Math.random() * 0.3) * 127); for (let v = s * PTS * 2; v < (s + 1) * PTS * 2; v++) { TA[v * 4 + 3] = cr; RT[v] = 2 + (RT[v] % 1); } }
+      for (let s = 0; s < g.userData.N; s++) { const cr = Math.round((0.8 + Math.random() * 0.2) * 127); /* 毛玉のふちの毛も白寄りに */ for (let v = s * PTS * 2; v < (s + 1) * PTS * 2; v++) { TA[v * 4 + 3] = cr; RT[v] = 2 + (RT[v] % 1); } }
       g.attributes.aRT.needsUpdate = true;
       f.mesh.renderOrder = 9; f.mesh.material.dispose(); f.mesh.material = pileMat; pile.push(f.mesh, ...addCotton(f.c, f.rc)); flying.splice(i, 1); ballVolTarget += f.addV; sfx.puff(); }
   }

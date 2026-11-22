@@ -327,7 +327,7 @@ vec3 adisp(vec3 p){
 varying vec3 vT, vN, vV, vLP; varying float vt, vCov, vRnd, vType, vCream, vY, vAO, vDist, vK;
 void main(){
   vec3 T = normalize(vT), V = normalize(vV), N = normalize(vN);
-  vec3 cream = vec3(0.96, 0.92, 0.86), red = vec3(0.97, 0.60, 0.29), tip = vec3(0.86, 0.48, 0.20);
+  vec3 cream = vec3(0.96, 0.92, 0.86), red = vec3(0.929, 0.611, 0.344), tip = vec3(0.818, 0.492, 0.251);
   vec3 col; float ao;
   if (vType < 0.5) {
     vec3 rc = mix(mix(vec3(0.98,0.88,0.74), red, smoothstep(0.05, 0.45, vt)), tip, smoothstep(0.75, 1.0, vt) * 0.35);
@@ -335,7 +335,7 @@ void main(){
     col = mix(rc, cc, vCream);
     ao = mix(0.72, 1.0, smoothstep(0.0, 0.6, vt));
   } else if (vType < 1.5) {
-    col = mix(vec3(0.95, 0.76, 0.52), vec3(0.99, 0.97, 0.94), vCream) * (0.84 + 0.16 * vt);
+    col = mix(vec3(0.928, 0.764, 0.558), vec3(0.99, 0.97, 0.94), vCream) * (0.84 + 0.16 * vt);
     ao = mix(0.6, 0.95, vt);
   } else {
     col = vec3(0.10, 0.085, 0.075); ao = 1.0;
@@ -371,7 +371,7 @@ void main(){
 const strandMat = () => new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const baseMat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide,
   vertexShader: `attribute float aTW; uniform float uTail, uTailW; float tk(){ return 0.45 * uTail * uTailW * aTW; } vec3 tpos(vec3 p){ return vec3(p.x, 0.2 + (p.y - 0.2) * (1.0 + tk()), p.z); } vec3 ttan(vec3 v){ return vec3(v.x, v.y * (1.0 + tk()), v.z); } vec3 tnrm(vec3 v){ return vec3(v.x, v.y / (1.0 + tk()), v.z); } uniform float uAngry, uHead; float wrk(vec3 p){   float m = 0.0, az = abs(p.z);   float yb = smoothstep(0.05, 0.06, p.y) * (1.0 - smoothstep(0.075, 0.088, p.y)) * smoothstep(0.112, 0.132, p.x);   float t = (p.y - 0.058) / 0.03;   m += yb * 0.8 * exp(-pow((az - (0.0055 - 0.003 * t)) / 0.0026, 2.0));   m += yb * 0.45 * exp(-pow((az - (0.0135 - 0.005 * t)) / 0.0026, 2.0));   float nb = (1.0 - smoothstep(0.016, 0.028, az)) * smoothstep(0.02, 0.03, p.y) * smoothstep(0.163, 0.173, p.x) * (1.0 - smoothstep(0.216, 0.225, p.x));   for (int i = 0; i < 4; i++) { float xi = 0.176 + float(i) * 0.012; m += nb * 0.9 * exp(-pow((p.x - xi - 10.0 * p.z * p.z) / 0.0017, 2.0)); }   return clamp(m, 0.0, 1.0) * uAngry * uHead; } vec3 adisp(vec3 p){   float lm = exp(-pow((p.y + 0.012) / 0.011, 2.0)) * smoothstep(0.195, 0.232, p.x) * (1.0 - smoothstep(0.028, 0.042, abs(p.z)));   return vec3(-0.002, 0.0048, 0.0) * lm * uAngry * uHead; }  attribute float aCream; attribute float aAO; attribute float aK; varying float vC, vA, vK; varying vec3 vN, vLP; void main(){ vLP = position; vC = aCream; vA = aAO; vK = aK; vN = normalize(mat3(modelMatrix)*tnrm(normal)); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(tpos(position) + adisp(position),1.0); }`,
-  fragmentShader: `uniform vec3 uL, uF; uniform float uAngry, uHead; float wrk(vec3 p){   float m = 0.0, az = abs(p.z);   float yb = smoothstep(0.05, 0.06, p.y) * (1.0 - smoothstep(0.075, 0.088, p.y)) * smoothstep(0.112, 0.132, p.x);   float t = (p.y - 0.058) / 0.03;   m += yb * 0.8 * exp(-pow((az - (0.0055 - 0.003 * t)) / 0.0026, 2.0));   m += yb * 0.45 * exp(-pow((az - (0.0135 - 0.005 * t)) / 0.0026, 2.0));   float nb = (1.0 - smoothstep(0.016, 0.028, az)) * smoothstep(0.02, 0.03, p.y) * smoothstep(0.163, 0.173, p.x) * (1.0 - smoothstep(0.216, 0.225, p.x));   for (int i = 0; i < 4; i++) { float xi = 0.176 + float(i) * 0.012; m += nb * 0.9 * exp(-pow((p.x - xi - 10.0 * p.z * p.z) / 0.0017, 2.0)); }   return clamp(m, 0.0, 1.0) * uAngry * uHead; } vec3 adisp(vec3 p){   float lm = exp(-pow((p.y + 0.012) / 0.011, 2.0)) * smoothstep(0.195, 0.232, p.x) * (1.0 - smoothstep(0.028, 0.042, abs(p.z)));   return vec3(-0.002, 0.0048, 0.0) * lm * uAngry * uHead; }  varying float vC, vA, vK; varying vec3 vN, vLP; void main(){ vec3 N = normalize(vN); float l = clamp(dot(N,uL)*0.5+0.5,0.,1.)*0.5 + clamp(dot(N,uF)*0.5+0.5,0.,1.)*0.5; vec3 c = mix(vec3(0.97,0.60,0.30), vec3(1.0,0.98,0.95), vC); gl_FragColor = vec4(mix(c*(0.75+0.25*l)*mix(vA, 1.0, 0.6*vC), vec3(0.06,0.045,0.04)*(0.7+0.6*l), vK) * (1.0 - 0.45 * wrk(vLP)), 1.0); }` });
+  fragmentShader: `uniform vec3 uL, uF; uniform float uAngry, uHead; float wrk(vec3 p){   float m = 0.0, az = abs(p.z);   float yb = smoothstep(0.05, 0.06, p.y) * (1.0 - smoothstep(0.075, 0.088, p.y)) * smoothstep(0.112, 0.132, p.x);   float t = (p.y - 0.058) / 0.03;   m += yb * 0.8 * exp(-pow((az - (0.0055 - 0.003 * t)) / 0.0026, 2.0));   m += yb * 0.45 * exp(-pow((az - (0.0135 - 0.005 * t)) / 0.0026, 2.0));   float nb = (1.0 - smoothstep(0.016, 0.028, az)) * smoothstep(0.02, 0.03, p.y) * smoothstep(0.163, 0.173, p.x) * (1.0 - smoothstep(0.216, 0.225, p.x));   for (int i = 0; i < 4; i++) { float xi = 0.176 + float(i) * 0.012; m += nb * 0.9 * exp(-pow((p.x - xi - 10.0 * p.z * p.z) / 0.0017, 2.0)); }   return clamp(m, 0.0, 1.0) * uAngry * uHead; } vec3 adisp(vec3 p){   float lm = exp(-pow((p.y + 0.012) / 0.011, 2.0)) * smoothstep(0.195, 0.232, p.x) * (1.0 - smoothstep(0.028, 0.042, abs(p.z)));   return vec3(-0.002, 0.0048, 0.0) * lm * uAngry * uHead; }  varying float vC, vA, vK; varying vec3 vN, vLP; void main(){ vec3 N = normalize(vN); float l = clamp(dot(N,uL)*0.5+0.5,0.,1.)*0.5 + clamp(dot(N,uF)*0.5+0.5,0.,1.)*0.5; vec3 c = mix(vec3(0.929,0.611,0.353), vec3(1.0,0.98,0.95), vC); gl_FragColor = vec4(mix(c*(0.75+0.25*l)*mix(vA, 1.0, 0.6*vC), vec3(0.06,0.045,0.04)*(0.7+0.6*l), vK) * (1.0 - 0.45 * wrk(vLP)), 1.0); }` });
 
 
 // ---- 地の毛：短く細かい毛の層（体の面を少しずつふくらませて重ねる）
@@ -430,7 +430,7 @@ void main(){
   float a = max(fib(q, vH), fib(q*1.73+7.3, vH) * 0.85);
   a *= vD * uShellA * (1.0 - vH * 0.6) * smoothstep(0.05, 0.4, abs(dot(normalize(vN), normalize(vV))));
   if (a < 0.03) discard;
-  vec3 red = vec3(0.97, 0.62, 0.32), cream = vec3(1.0, 0.98, 0.95);
+  vec3 red = vec3(0.931, 0.63, 0.372), cream = vec3(1.0, 0.98, 0.95);
   vec3 col = mix(red, cream, vC) * mix(mix(0.66, 0.84, vC), 1.03, vH);
   vec3 N = normalize(vN);
   col *= mix(1.0, 0.86, smoothstep(0.85, 0.99, N.y) * (1.0 - vC)) * mix(0.8, 1.0, smoothstep(-0.6, 0.1, N.y));
@@ -515,7 +515,7 @@ const lidMat = new THREE.MeshBasicMaterial({ color: 0x0b0806 });
 for (let ei = 0; ei < 2; ei++) {
   const dir = new THREE.Vector3().fromArray(META.eyeDir[ei]);
   const c = new THREE.Vector3().fromArray(META.eyes[ei]);
-  const eg = new THREE.Group(); eg.position.copy(c); eg.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir); eg.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(ei === 0 ? 1 : -1) * 0.26)); headP.add(eg);
+  const eg = new THREE.Group(); eg.position.copy(c); eg.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir); eg.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(ei === 0 ? 1 : -1) * 0.26)); eg.scale.setScalar(1.2); headP.add(eg);   // 目を少し大きく（2026-11-23 運営者）
   const ball = new THREE.Mesh(new THREE.SphereGeometry(META.eyeR, 32, 24), eyeMat); eyeBalls.push(ball); ball.scale.set(1, 0.62, 1); eg.add(ball);
   const lid = new THREE.Mesh(new THREE.TorusGeometry(META.eyeR * 0.98, 0.0019, 10, 40), lidMat); lid.rotation.y = Math.PI / 2; lid.scale.set(1, 0.62, 1); lid.position.x = META.eyeR * 0.36; eg.add(lid);
 }
@@ -955,12 +955,14 @@ void main(){
   vec3 N = normalize(vN), V = normalize(cameraPosition - vW);
   if (dot(N, V) < 0.0) N = -N;
   float fib = nz(vW * 900.0) * 0.5 + nz(vW * vec3(2300.0, 700.0, 1900.0)) * 0.35 + nz(vW * 240.0) * 0.4;
-  vec3 col = vec3(0.86, 0.75, 0.59) * (0.86 + 0.22 * fib) * mix(vec3(1.0), vec3(1.04, 1.0, 0.95), nz(vW * 60.0));
+  // 白と、ごくわずかに茶色い毛の2色。ゆるいノイズで混ぜて境を見せない（2026-11-23 運営者）
+  float mx = smoothstep(0.2, 0.8, nz(vW * 16.0 + 3.0) * 0.55 + nz(vW * 48.0) * 0.3 + fib * 0.15);
+  vec3 col = mix(vec3(0.97, 0.955, 0.93), vec3(0.90, 0.78, 0.64), mx * 0.8) * (0.9 + 0.14 * fib);
   vec3 out_ = normalize(vW - uPileC); float crev = smoothstep(-0.4, 0.6, dot(N, out_));
   float depth = smoothstep(0.35, 1.0, length(vW - uPileC) / max(uPileR, 0.01));
-  float ao = mix(0.76, 1.0, crev * 0.3 + depth * 0.7) * mix(0.72, 1.0, smoothstep(0.0, 0.06, vW.y));
-  float l = 0.62 + 0.3 * clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0) + 0.18 * clamp(dot(N, uF) * 0.5 + 0.5, 0.0, 1.0);
-  vec3 c = col * l * ao * 1.12;
+  float ao = mix(0.88, 1.0, crev * 0.3 + depth * 0.7) * mix(0.8, 1.0, smoothstep(0.0, 0.06, vW.y));
+  float l = 0.86 + 0.16 * clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0) + 0.08 * clamp(dot(N, uF) * 0.5 + 0.5, 0.0, 1.0);   // 陰を弱くして、丸い塊の並びに見せない
+  vec3 c = col * l * ao * 1.04;
   float a = 1.0;
   if (uSoft > 0.5) { float ed = abs(dot(N, V)); a = smoothstep(0.0, 0.9, ed) * smoothstep(0.25, 0.95, fib) * 0.9; c *= 1.04; if (a < 0.02) discard; }
   gl_FragColor = vec4(c, a);
@@ -985,7 +987,7 @@ function updateFlying(dt) {
     if (t >= 1) {
       const g = f.mesh.geometry; setStrands(g, f.to, g.userData.N);
       const TA = g.attributes.aTan.array, RT = g.attributes.aRT.array;
-      for (let s = 0; s < g.userData.N; s++) { const cr = Math.round((0.32 + Math.random() * 0.3) * 127); for (let v = s * PTS * 2; v < (s + 1) * PTS * 2; v++) { TA[v * 4 + 3] = cr; RT[v] = 2 + (RT[v] % 1); } }
+      for (let s = 0; s < g.userData.N; s++) { const cr = Math.round((0.8 + Math.random() * 0.2) * 127); /* 毛玉のふちの毛も白寄りに */ for (let v = s * PTS * 2; v < (s + 1) * PTS * 2; v++) { TA[v * 4 + 3] = cr; RT[v] = 2 + (RT[v] % 1); } }
       g.attributes.aRT.needsUpdate = true;
       f.mesh.renderOrder = 9; f.mesh.material.dispose(); f.mesh.material = pileMat; pile.push(f.mesh, ...addCotton(f.c, f.rc)); flying.splice(i, 1); ballVolTarget += f.addV; sfx.puff(); }
   }
