@@ -1,7 +1,7 @@
 const SND_SRC = __SND__;
 // ================= ゲーム =================
 const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
-const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 10, slowSp: 400, moveK: 0.33, holdK: 0.1, time: 60, flEvery: 4.5, flLife: 8, flMax: 2, bonusU: 90, showMeter: false, noAnger: false };
+const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 20, slowSp: 400, moveK: 0.33, holdK: 0.1, time: 60, flEvery: 4.5, flLife: 8, flMax: 2, bonusU: 90, showMeter: false, noAnger: false };
 // 引く速さ（画面の px/秒）→ 痛さの倍率。100px/秒で約0.55、300で約1.05、650で約1.9、1480以上で4
 const spFactor = sp => Math.min(4, 0.3 + sp / G.slowSp);
 const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
@@ -649,7 +649,7 @@ $('snd').classList.toggle('off', muted);
 $('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').classList.toggle('off', muted); if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
 if (!/[?&]debug=1/.test(location.search)) $('adj').classList.add('hide');   // 調整パネルは ?debug=1 のときだけ
 // ---- 調整（確認用）
-const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['slowSp', '速さの許し（大きいほど速く引いてもバレにくい）', 150, 1000, 10, G],['time', '制限時間（秒）', 20, 180, 5, G], ['flEvery', '浮き毛が出る間隔（秒）', 1, 15, 0.5, G], ['flLife', '浮き毛が残る時間（秒）', 3, 20, 0.5, G], ['bonusU', 'ボーナス1秒に要る毛の量', 30, 300, 10, G], ['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 12, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
+const SPEC = [['angerK', '怒りやすさ', 0.2, 3, 0.05, G], ['decay', '休むと落ち着く速さ', 0, 0.4, 0.01, G], ['irrit', '1回ごとのうんざり', 0, 0.03, 0.001, G], ['slowSp', '速さの許し（大きいほど速く引いてもバレにくい）', 150, 1000, 10, G],['time', '制限時間（秒）', 20, 180, 5, G], ['flEvery', '浮き毛が出る間隔（秒）', 1, 15, 0.5, G], ['flLife', '浮き毛が残る時間（秒）', 3, 20, 0.5, G], ['bonusU', 'ボーナス1秒に要る毛の量', 30, 300, 10, G], ['radius', 'つかむ広さ（m）', 0.015, 0.06, 0.001, G], ['fluff', '毛玉のふくらみ', 1, 40, 0.5, G], ['strands', '毛の本数（割合）', 0.2, 1, 0.05, P], ['dpr', '解像度の上限', 0.75, 3, 0.25, P]];
 $('panel').innerHTML = SPEC.map(([k, l, a, b, s, o]) => `<label>${l}：<b id="v_${k}">${o[k]}</b></label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${o[k]}">`).join('') +
   `<label class="ck"><input type="checkbox" id="c_meter">怒りのメーターを出す</label><label class="ck"><input type="checkbox" id="c_no">怒らない（確認用）</label><button id="b_gau" style="height:32px;margin-top:6px">いま怒らせる</button><div id="info" style="margin-top:6px;color:#8a6a50"></div>`;
 for (const [k, , , , , o] of SPEC) $('i_' + k).oninput = e => { o[k] = +e.target.value; $('v_' + k).textContent = o[k]; if (k === 'dpr') resize(); };
