@@ -443,17 +443,17 @@ let tongue;
   tongue.scale.set(0.033, 0.006, 0.029); tongue.position.copy(mc).add(new THREE.Vector3(0.002, -mr[1] * 0.55, 0)); tongue.rotation.z = -0.6; headP.add(tongue);
 }
 scene.add(new THREE.AmbientLight(0xffeedd, 0.6)); const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.copy(FDIR); scene.add(dl);
-// 明るいリビング：白い壁・明るいフローリング・ラグ・窓
+// 明るいリビング：白い壁・濃い茶のフローリング（毛玉が映えるように）・ラグ・窓
 function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
 const h3 = (i, j, k) => { let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
 const floorTex = canvasTex(1024, 1024, (g, w, h) => {
-  g.fillStyle = '#d9bf98'; g.fillRect(0, 0, w, h); const bw = h / 10;
+  g.fillStyle = '#6e4628'; g.fillRect(0, 0, w, h); const bw = h / 10;
   for (let r = 0; r < 10; r++) { const off = h3(r, 1, 2) * w;
     for (let seg = -1; seg < 2; seg++) { const x0 = off + seg * w * 0.7, tone = 0.93 + 0.12 * h3(r, seg + 5, 9);
-      g.fillStyle = `rgb(${Math.min(255, 222 * tone) | 0},${Math.min(255, 194 * tone) | 0},${Math.min(255, 152 * tone) | 0})`; g.fillRect(x0, r * bw, w * 0.7, bw);
-      g.strokeStyle = 'rgba(150,105,60,.13)'; for (let l = 0; l < 9; l++) { g.beginPath(); const yy = r * bw + 5 + l * (bw - 10) / 8; g.moveTo(x0, yy); for (let x = 0; x < w * 0.7; x += 16) g.lineTo(x0 + x, yy + Math.sin(x * 0.015 + l * 1.7 + r) * 2.5); g.stroke(); }
-      g.fillStyle = 'rgba(120,80,45,.35)'; g.fillRect(x0, r * bw, 1.5, bw); }
-    g.fillStyle = 'rgba(120,80,45,.4)'; g.fillRect(0, r * bw, w, 1.5); }
+      g.fillStyle = `rgb(${Math.min(255, 118 * tone) | 0},${Math.min(255, 76 * tone) | 0},${Math.min(255, 44 * tone) | 0})`; g.fillRect(x0, r * bw, w * 0.7, bw);
+      g.strokeStyle = 'rgba(40,20,8,.22)'; for (let l = 0; l < 9; l++) { g.beginPath(); const yy = r * bw + 5 + l * (bw - 10) / 8; g.moveTo(x0, yy); for (let x = 0; x < w * 0.7; x += 16) g.lineTo(x0 + x, yy + Math.sin(x * 0.015 + l * 1.7 + r) * 2.5); g.stroke(); }
+      g.fillStyle = 'rgba(30,15,5,.5)'; g.fillRect(x0, r * bw, 1.5, bw); }
+    g.fillStyle = 'rgba(30,15,5,.55)'; g.fillRect(0, r * bw, w, 1.5); }
 });
 floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(4, 4); floorTex.rotation = 0.35;
 const floor = new THREE.Mesh(new THREE.CircleGeometry(5, 64), new THREE.MeshBasicMaterial({ map: floorTex })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
