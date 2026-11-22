@@ -391,7 +391,7 @@ function updateFlying(dt) {
 const pileMat = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, { uW0: { value: P.w0 * 2.2 }, uSun: { value: 0.7 }, uSpec: { value: 0.1 }, uOpac: { value: 1.1 } }), vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });
 const pile = []; let pileV = 0, ballVolShown = 0, ballVolTarget = 0, ballR = 0.006;
 const ballShadow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false })); ballShadow.rotation.x = -Math.PI / 2; scene.add(ballShadow);
-function ballPos(r) { return new THREE.Vector3(-0.08 - r * 0.3, r, -0.36 - r * 1.2); }
+function ballPos(r) { return new THREE.Vector3(-0.12 - r * 0.6, r, -0.42 - r * 1.9); }   // 大きくなるほど犬から離す（回したときに犬を隠さないように）
 function updateBall(dt) {
   ballVolShown += (ballVolTarget - ballVolShown) * Math.min(1, dt * 6);
   ballR = Math.max(0.006, Math.cbrt(3 * ballVolShown / (4 * Math.PI)));
@@ -501,20 +501,20 @@ function resize() {
 }
 addEventListener('resize', resize); resize(); new ResizeObserver(resize).observe(cv);   // 広告の余白で canvas が縮んだときも
 const camD = { d: 2.4, tgt: new THREE.Vector3(0.1, 0.16, 0) };
-function fitView(az, el, tanV, tanH) {
+function fitView(az, el, tanV, tanH, dogC) {   // dogC: 回す中心を犬にする（毛玉は距離だけに入れる）
   const ce = Math.cos(el), f = new THREE.Vector3(-ce * Math.cos(az), -Math.sin(el), -ce * Math.sin(az));
   const rt = new THREE.Vector3().crossVectors(f, new THREE.Vector3(0, 1, 0)).normalize(), up = new THREE.Vector3().crossVectors(rt, f);
   const pts = [];
   for (const x of [-0.42, 0.52]) for (const y of [0, 0.42]) for (const z of [-0.16, 0.16]) pts.push(new THREE.Vector3(x, y, z));
   if (ballVolShown > 1e-6) { const bp = ballPos(ballR); for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) pts.push(bp.clone().add(new THREE.Vector3(dx, dy, dz).multiplyScalar(ballR * 1.15))); }
-  const tgt = new THREE.Box3().setFromPoints(pts).getCenter(new THREE.Vector3());
+  const tgt = new THREE.Box3().setFromPoints(dogC ? pts.slice(0, 8) : pts).getCenter(new THREE.Vector3());
   let d = 0.5;
   for (const p of pts) { const q = p.clone().sub(tgt), a = q.dot(rt), b = q.dot(up), c = q.dot(f); d = Math.max(d, Math.abs(a) / tanH - c, Math.abs(b) / tanV - c); }
   return { tgt, d, ce };
 }
 function camUpdate(dt) {
   // 犬と毛玉が画面に収まる距離を、いまの向きで求める
-  const tv = Math.tan(camera.fov * Math.PI / 360), { tgt, d, ce } = fitView(az, el, tv * 0.78, tv * camera.aspect * 0.9);
+  const tv = Math.tan(camera.fov * Math.PI / 360), { tgt, d, ce } = fitView(az, el, tv * 0.78, tv * camera.aspect * 0.9, true);
   zoom += ((pull ? 0.92 : 1) * zoomU - zoom) * Math.min(1, dt * (pinch ? 15 : 4));   // ピンチ中は指に付いてくる
   camD.d += (d - camD.d) * Math.min(1, dt * 3); camD.tgt.lerp(tgt, Math.min(1, dt * 3));
   const D = camD.d * zoom, T = camD.tgt;
