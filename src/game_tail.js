@@ -43,8 +43,24 @@ function gather(geo, center, R, prob, list, info) {
     if (list.length > 700) return;
   }
 }
+// ---- ピンチでズーム（スマホ）。2本目の指が触れたら抜くのをやめ、指を全部離すまで抜けない
+const touches = new Map(); let pinch = null;
+document.addEventListener('gesturechange', e => e.preventDefault());   // iPhone の Safari でページごと拡大しない
+const tDist = () => { const [a, b] = touches.values(); return Math.hypot(a.x - b.x, a.y - b.y) || 1; };
 cv.addEventListener('pointerdown', e => {
-  if (state !== 'play' || pull) return;
+  if (e.pointerType !== 'touch') return;
+  touches.set(e.pointerId, { x: e.clientX, y: e.clientY });   // タッチは押した要素に自動で捕まる
+  if (touches.size === 2 && state === 'play') { if (pull) endPull({ pointerId: pull.id }); pinch = { d0: tDist(), z0: zoomU }; }
+});
+cv.addEventListener('pointermove', e => {
+  const t = touches.get(e.pointerId); if (!t) return;
+  t.x = e.clientX; t.y = e.clientY;
+  if (pinch && touches.size >= 2) zoomU = Math.max(0.45, Math.min(1.2, pinch.z0 * pinch.d0 / tDist()));
+});
+const endTouch = e => { touches.delete(e.pointerId); if (touches.size === 0) pinch = null; };
+cv.addEventListener('pointerup', endTouch); cv.addEventListener('pointercancel', endTouch);
+cv.addEventListener('pointerdown', e => {
+  if (state !== 'play' || pull || pinch || touches.size > 1) return;
   const h = pick(e); if (!h) return;
   const P_ = h.object.userData.part, local = P_.parent.worldToLocal(h.point.clone());
   // 毛の根元へ寄せる（つかんだ点から面へ）
@@ -359,7 +375,7 @@ function fitView(az, el, tanV, tanH) {
 function camUpdate(dt) {
   // 犬と毛玉が画面に収まる距離を、いまの向きで求める
   const tv = Math.tan(camera.fov * Math.PI / 360), { tgt, d, ce } = fitView(az, el, tv * 0.78, tv * camera.aspect * 0.9);
-  zoom += ((pull ? 0.92 : 1) * zoomU - zoom) * Math.min(1, dt * 4);
+  zoom += ((pull ? 0.92 : 1) * zoomU - zoom) * Math.min(1, dt * (pinch ? 15 : 4));   // ピンチ中は指に付いてくる
   camD.d += (d - camD.d) * Math.min(1, dt * 3); camD.tgt.lerp(tgt, Math.min(1, dt * 3));
   const D = camD.d * zoom, T = camD.tgt;
   camera.position.set(T.x + ce * Math.cos(az) * D, T.y + Math.sin(el) * D, T.z + ce * Math.sin(az) * D);
