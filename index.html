@@ -752,7 +752,7 @@ const endPull = e => {
   if (!pull || e.pointerId !== pull.id) return;
   setAlive(pull.P.p.ug, pull.uL, 255); setAlive(pull.P.p.gg, pull.gL, 255);   // 抜けなかった毛は元に戻る
   const fl = pull.floater; if (fl) { fl.grab = false; fl.tuft.mesh.visible = true; setAlive(pull.P.p.ug, fl.uL, 0); setAlive(pull.P.p.gg, fl.gL, 0); }
-  pull.P.parent.remove(pull.tuft.mesh); pull.tuft.mesh.geometry.dispose(); pull.tuft.mesh.material.dispose(); pull = null;
+  pull.P.parent.remove(pull.tuft.mesh); pull.tuft.mesh.geometry.dispose(); pull.tuft.mesh.material.dispose(); pull = null; handLeave();
 };
 cv.addEventListener('pointerup', endPull); cv.addEventListener('pointercancel', endPull);
 const endOrbit = e => { if (orbit && e.pointerId === orbit.id) orbit = null; };
@@ -779,10 +779,69 @@ function makeTuft(P_, uL, gL, creamAll) {
   const off = new Float32Array(N * 3); for (let j = 0; j < N * 3; j++) off[j] = (Math.random() - 0.5) * 0.014;
   return { mesh, orig: pos.slice(), N, off };
 }
+
+// ---- つまむ指（抜いている間だけ、毛の束の先に親指と人差し指を出す。2026-11-23 運営者）
+function capsuleGeo(r, L) {   // 根元の丸い先が y=0、反対の先が y=L のカプセル（r128 には CapsuleGeometry がない）
+  const pts = [];
+  for (let i = 0; i <= 8; i++) { const a = -Math.PI / 2 + i / 8 * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r, r + Math.sin(a) * r)); }
+  for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI / 2; pts.push(new THREE.Vector2(Math.cos(a) * r, L - r + Math.sin(a) * r)); }
+  return new THREE.LatheGeometry(pts, 16);
+}
+// 指だけを出す。付け根の方は指先からの距離でぼかして消す（いきなり切れて見えないように。2026-11-23 運営者）
+function fingerMat(col, tipU) {
+  return new THREE.ShaderMaterial({ uniforms: { uTip: tipU, uVis: hand0.vis, uFade: hand0.fade, uCol: { value: new THREE.Color(col) }, uL: U.uL, uF: U.uF }, transparent: true, depthWrite: true,
+    vertexShader: `varying vec3 vN, vW; void main(){ vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `uniform vec3 uTip, uCol, uL, uF; uniform float uVis; uniform vec2 uFade; varying vec3 vN, vW; void main(){
+      vec3 N = normalize(vN), V = normalize(cameraPosition - vW);
+      float l = (0.92 + 0.2 * max(dot(N, normalize(uL)), 0.0) + 0.18 * max(dot(N, normalize(uF)), 0.0)) * (0.78 + 0.22 * max(dot(N, V), 0.0));
+      vec3 c = uCol * l;
+      float a = (1.0 - smoothstep(uFade.x, uFade.y, distance(vW, uTip))) * uVis;
+      if (a < 0.01) discard; gl_FragColor = vec4(c, a); }` });
+}
+const hand0 = { vis: { value: 0 }, fade: { value: new THREE.Vector2(0.022, 0.056) } };
+const HS = 1.6;   // 指の大きさ（1 = 本物の指くらい）
+// [半径, 長さ, 指先側から見た曲がり（A 軸からの角度）]。親指は -S 側、人差し指は +S 側
+const FING = { th: [[0.0095, 0.030, 0.30], [0.0105, 0.036, 0.6], [0.012, 0.05, 0.85]], ix: [[0.0085, 0.024, 0.15], [0.009, 0.027, 0.4], [0.0095, 0.055, 0.6]] };
+const hand = { g: new THREE.Group(), segs: {}, nails: {}, tips: {}, open: 1, vis: 0, on: false, G: new THREE.Vector3(), A: new THREE.Vector3(0, 1, 0), S: new THREE.Vector3(1, 0, 0) };
+hand0.fade.value.multiplyScalar(HS);
+for (const k of ['th', 'ix']) {
+  hand.tips[k] = { value: new THREE.Vector3() }; const handMat = fingerMat(0xf2b894, hand.tips[k]), nailMat = fingerMat(0xf6d3c6, hand.tips[k]);
+  hand.segs[k] = FING[k].map(([r, L]) => { const m = new THREE.Mesh(capsuleGeo(r * HS, L * HS), handMat); m.renderOrder = 60; hand.g.add(m); return m; });
+  const n = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), nailMat); n.scale.set(FING[k][0][0] * HS * 0.6, FING[k][0][1] * HS * 0.22, FING[k][0][0] * HS * 0.25); n.renderOrder = 61; hand.g.add(n); hand.nails[k] = n;
+}
+hand.g.visible = false; scene.add(hand.g);
+const _Y = new THREE.Vector3(0, 1, 0);
+function handGrip(G, rootW) {   // 引いている間、毎コマ呼ぶ：つまむ所と向きを決める
+  const toCam = camera.position.clone().sub(G).normalize(), out = G.clone().sub(rootW); if (out.lengthSq() < 1e-8) out.copy(toCam); out.normalize();
+  const cu = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);   // 指は画面の上の方から伸びてくる向き（手前に向けすぎると先しか見えない）
+  hand.G.copy(G); hand.A.copy(out).multiplyScalar(0.3).addScaledVector(cu, 0.7).addScaledVector(toCam, 0.65).normalize();
+  const cr = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).add(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion));
+  hand.S.copy(cr).addScaledVector(hand.A, -cr.dot(hand.A)).normalize();
+  if (!hand.on) { hand.on = true; hand.open = 1; }
+}
+function handLeave() { hand.on = false; }
+function updateHand(dt) {
+  hand.open += ((hand.on ? 0 : 1) - hand.open) * Math.min(1, dt * (hand.on ? 14 : 10));
+  hand.vis += ((hand.on ? 1 : 0) - hand.vis) * Math.min(1, dt * (hand.on ? 18 : 7));
+  hand.g.visible = hand.vis > 0.02; if (!hand.g.visible) return;
+  hand0.vis.value = Math.min(1, hand.vis * 1.3);
+  const A = hand.A, S = hand.S, N = new THREE.Vector3().crossVectors(A, S);
+  for (const k of ['th', 'ix']) {
+    const sg = k === 'th' ? -1 : 1, r0 = FING[k][0][0] * HS;
+    const p = hand.G.clone().addScaledVector(S, sg * (r0 * 0.95 + hand.open * 0.018));   // 指先の腹がつまむ所で合う。開くと離れる
+    hand.tips[k].value.copy(p);
+    FING[k].forEach(([r, L, ang], i) => {
+      const a = ang + hand.open * 0.25, d = A.clone().multiplyScalar(Math.cos(a)).addScaledVector(S, sg * Math.sin(a)).addScaledVector(N, k === 'th' ? 0.15 : -0.1).normalize();
+      const m = hand.segs[k][i]; m.position.copy(p).addScaledVector(d, -r * HS); m.quaternion.setFromUnitVectors(_Y, d);
+      if (i === 0) { const n = hand.nails[k]; n.quaternion.copy(m.quaternion); n.position.copy(p).addScaledVector(d, L * HS * 0.3).addScaledVector(S, sg * r * HS * 0.75); n.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(_Y, 0)); }
+      p.addScaledVector(d, L * HS - 2 * r * HS);
+    });
+  }
+}
 const _v = new THREE.Vector3();
 function updateTuft(q, pinchL, stretch) {
   const T = q.tuft, P3 = T.mesh.geometry.attributes.position.array, TA = T.mesh.geometry.attributes.aTan.array, O = T.orig;
-  const b = Math.min(1, stretch);
+  const b = Math.min(1, stretch); let tx_ = 0, ty_ = 0, tz_ = 0;
   for (let s = 0; s < T.N; s++) {
     const r0 = s * PTS * 3, rx = O[r0], ry = O[r0 + 1], rz = O[r0 + 2];
     const px = pinchL.x + T.off[s * 3] * (1 - 0.5 * b), py = pinchL.y + T.off[s * 3 + 1] * (1 - 0.5 * b), pz = pinchL.z + T.off[s * 3 + 2] * (1 - 0.5 * b);
@@ -798,7 +857,9 @@ function updateTuft(q, pinchL, stretch) {
       if (i > 0) { let tx = x - lx, ty = y - ly, tz = z - lz; const l = Math.hypot(tx, ty, tz) || 1; for (const ii of [i - 1, i]) for (let sd = 0; sd < 2; sd++) { const v = (s * PTS + ii) * 2 + sd; TA[v * 4] = tx / l * 127; TA[v * 4 + 1] = ty / l * 127; TA[v * 4 + 2] = tz / l * 127; } }
       lx = x; ly = y; lz = z;
     }
+    tx_ += lx; ty_ += ly; tz_ += lz;
   }
+  T.tip = new THREE.Vector3(tx_, ty_, tz_).divideScalar(Math.max(1, T.N));   // 束の先（指でつまむ所）
   T.mesh.geometry.attributes.position.needsUpdate = true; T.mesh.geometry.attributes.aTan.needsUpdate = true;
 }
 function pullUpdate(dt) {
@@ -813,7 +874,7 @@ function pullUpdate(dt) {
   if (!G.noAnger) anger += pain * 0.16 * G.angerK * (G.moveK * (moved / q.req) * q.spF + G.holdK * dt * Math.min(1.2, stretch));
   const rootW = q.P.parent.localToWorld(q.local.clone());
   const pinchW = pointerWorld(q.x, q.y, rootW), pinchL = q.P.parent.worldToLocal(pinchW.clone());
-  updateTuft(q, pinchL, Math.min(1, stretch * 1.15));
+  updateTuft(q, pinchL, Math.min(1, stretch * 1.15)); if (q.tuft.N) handGrip(q.P.parent.localToWorld(q.tuft.tip.clone()), rootW);
   if (dist >= q.req) pop(q, pinchW);
 }
 const flying = [];
@@ -833,7 +894,7 @@ function pop(q, pinchW) {
   const cs = clumpShape(from, N, addV);
   flying.push({ mesh, t: 0, from, to: cs.to, c: cs.c, rc: cs.rc, cur: new Float32Array(from.length), addV });
   for (let i = 0; i < 6 + Math.min(20, q.n / 15); i++) spawn({ kind: 'mote', p: pinchW.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.02 + Math.random() * 0.05, (Math.random() - 0.5) * 0.08), age: 0, life: 2.5 + Math.random() * 2.5, size: 0.003 + Math.random() * 0.004, col: [1, 0.95, 0.85], a: 0.8 });
-  pull = null;
+  pull = null; handLeave();
   if (q.n < 6) { sfx.empty(); flash(TX.empty); } else { sfx.pluck(frac > 0.002); }
   if (q.sens > 2.6) { flash(TX.yelp); sfx.yelp(); } else if (q.left < 0.45) flash(TX.thin);
   if (q.floater) {
@@ -1229,7 +1290,7 @@ function loop(now) {
     const s = toScreen(dog.localToWorld(new THREE.Vector3(-0.02, 0.62, 0)));   // 柴犬の上
     const mw = $('msg').offsetWidth / 2 + 8; $('msg').style.left = Math.max(mw, Math.min(cv.clientWidth - mw, s.x)) + 'px';   // 画面の端からはみ出さない $('msg').style.top = Math.max(110, Math.min(cv.clientHeight - 80, s.y)) + 'px';
   }
-  tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
+  tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt); updateHand(dt);
   for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
@@ -1287,7 +1348,7 @@ function reset() {
     const bd = P_.p.base.geometry.attributes.aDens.array; bd.fill(1); P_.p.base.geometry.attributes.aDens.needsUpdate = true;
   }
   for (const m of [...flying.map(f => f.mesh), ...pile]) { scene.remove(m); if (m.geometry !== blobGeo) m.geometry.dispose(); if (m.material !== pileMat) m.material.dispose(); if (m.geometry === blobGeo) {} } flying.length = 0; pile.length = 0; pileV = 0;
-  shellU.uShellL.value = P.shellL; anger = 0; irrit = 0; plucks = 0; idleT = 0; ballVolTarget = 0; ballVolShown = 0; pull = null; timeLeft = G.time; bonusHold = 0; flT = 2.5; endBy = 'gau'; headYaw = 0; headPitch = 0; zoomU = 1; angry = 0;
+  shellU.uShellL.value = P.shellL; anger = 0; irrit = 0; plucks = 0; idleT = 0; ballVolTarget = 0; ballVolShown = 0; pull = null; hand.on = false; hand.vis = 0; hand.open = 1; timeLeft = G.time; bonusHold = 0; flT = 2.5; endBy = 'gau'; headYaw = 0; headPitch = 0; zoomU = 1; angry = 0;
   for (let i = parts.length - 1; i >= 0; i--) if (parts[i].kind !== 'dust') parts.splice(i, 1);
   while (floaters.length) removeFloater(floaters[0], false);
 }
