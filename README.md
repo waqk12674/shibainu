@@ -14,6 +14,7 @@
 
 作り直し：src で `python build.py && python pack.py && python mkgame.py`（効果音は `../snd/` から読む）
 
-## 配信（試験中）
-- Cloudflare Worker `shibainu`（静的ファイルだけ）。`index.html` だけを `.assetsignore` の許可リストで公開。
-- 試験中は `wrangler.jsonc` に routes を書かない（workers.dev だけ）。
+## 配信
+- Cloudflare Worker `shibainu`（ランキングの API と英語版 /en/ だけ Worker。ほかは静的ファイル）、D1 `shibainu-scores`（schema.sql）。
+- 公開するのは `index.html`・`vendor/`・`ogp.jpg` だけ（`.assetsignore` の許可リスト）。
+- 詳しい決まりは CLAUDE.md。

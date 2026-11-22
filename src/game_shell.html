@@ -1,9 +1,49 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" data-ui-lang="ja">
 <head>
 <meta charset="utf-8">
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-NPJ5KTSD');</script>
+<!-- End Google Tag Manager -->
+<script>
+// ---------- 広告：ジーニーのオーバーレイ（animal-rocket の写し。2026-11-22 運営者）。帯は作らない ----------
+// 全員の広告を止める：enabled を false にして push。撮影の1台だけなら URL に ?noads=1
+var ADS = { enabled: true, provider_pc: 'geniee', provider_sp: 'geniee', banner: true };
+// ?noads=1：何も読まず、何も出さない（Cookie waqk_noads=1 をハブと共通で30日付ける。?noads=0 で消える）
+// ?adtest=1・?debug=1：テスト用の広告がないので、本物を読まない。?adprov=geniee：Cookie があってもそのページだけ出す
+(function () {
+  var q = new URLSearchParams(location.search), noads = q.get('noads'), prov = q.get('adprov');
+  if (noads === '1') document.cookie = 'waqk_noads=1; Path=/; Max-Age=2592000; Secure; SameSite=Lax';
+  if (noads === '0') document.cookie = 'waqk_noads=; Path=/; Max-Age=0; Secure; SameSite=Lax';
+  // waqk.jp 以外（workers.dev・手元・ポータル）は ?noads=1 と同じ扱い（審査を通っていないドメインで広告を読まない）
+  if (location.hostname !== 'waqk.jp') { noads = '1'; prov = null; }
+  if (q.get('debug') === '1' || q.get('adtest') === '1') ADS.dry = true;
+  var off = noads === '1' || (prov !== 'geniee' && noads !== '0' && /(?:^|;\s*)waqk_noads=1(?:;|$)/.test(document.cookie));
+  if (!ADS.enabled || off) ADS.banner = false;
+})();
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<title>柴犬（換毛期）</title>
+<title>柴犬（換毛期）｜毛を抜いて毛玉を作る無料ブラウザゲーム</title>
+<meta name="description" content="換毛期の柴犬から、指でつまんで毛を抜こう。怒らせないように気をつけながら、60秒でどこまで大きな毛玉を作れるか。インストール不要・登録不要で、スマホでもPCでも遊べる無料ブラウザゲームです。">
+<link rel="canonical" href="https://waqk.jp/shibainu/">
+<link rel="alternate" hreflang="ja" href="https://waqk.jp/shibainu/">
+<link rel="alternate" hreflang="en" href="https://waqk.jp/shibainu/en/">
+<link rel="alternate" hreflang="x-default" href="https://waqk.jp/shibainu/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="柴犬（換毛期）">
+<meta property="og:description" content="換毛期の柴犬から毛を抜いて、大きな毛玉を作ろう。怒らせたら終わり。">
+<meta property="og:url" content="https://waqk.jp/shibainu/">
+<meta property="og:image" content="https://waqk.jp/shibainu/ogp.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="柴犬（換毛期）">
+<meta name="twitter:description" content="換毛期の柴犬から毛を抜いて、大きな毛玉を作ろう。怒らせたら終わり。">
+<meta name="twitter:image" content="https://waqk.jp/shibainu/ogp.jpg">
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "VideoGame", "name": "柴犬（換毛期）", "alternateName": "Shedding Shiba", "description": "換毛期の柴犬から、指でつまんで毛を抜こう。怒らせないように気をつけながら、60秒でどこまで大きな毛玉を作れるか。インストール不要・登録不要で、スマホでもPCでも遊べる無料ブラウザゲームです。", "url": "https://waqk.jp/shibainu/", "image": "https://waqk.jp/shibainu/ogp.jpg", "inLanguage": "ja", "genre": ["シミュレーション", "カジュアル"], "gamePlatform": ["Web browser", "PC", "Smartphone"], "applicationCategory": "Game", "operatingSystem": "Any", "playMode": "SinglePlayer", "isAccessibleForFree": true, "offers": {"@type": "Offer", "price": 0, "priceCurrency": "JPY"}, "author": {"@type": "Person", "name": "WAQK"}, "publisher": {"@type": "Organization", "name": "WAQK GAMES", "url": "https://waqk.jp/"}}</script>
+<script src="https://waqk.jp/more-games.js" defer></script>
 <style>
 /* VOICE: 換毛期の柴犬の毛を、そっと、欲張って抜く
    IDEA: 昼のリビングで、横に毛玉がふくらんでいく
@@ -29,6 +69,38 @@ button{font:inherit;color:inherit;cursor:pointer}
 #meter{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));transform:translateX(-50%);width:180px;height:8px;border-radius:4px;background:rgba(251,244,232,.85);overflow:hidden;pointer-events:none}
 #meter>div{height:100%;width:0;background:linear-gradient(90deg,#e8b070,#c4501d)}#mFloor{position:absolute;top:0;bottom:0;width:2px;background:#3a2416}
 /* ドラッグで回せることを知らせる、上下左右のうっすら点滅する矢印（押せない） */
+/* 日英：<span lang="ja">…</span><span lang="en">…</span> を並べ、<html data-ui-lang> で片方だけ見せる（<html lang> は日本語のまま） */
+html[data-ui-lang="ja"] [lang="en"], html[data-ui-lang="en"] [lang="ja"]{display:none!important}
+#langBtn{position:fixed;right:calc(66px + env(safe-area-inset-right));top:calc(10px + env(safe-area-inset-top));height:46px;padding:0 14px;border-radius:23px;border:0;background:rgba(251,244,232,.93);font-weight:700;font-size:14px;box-shadow:0 1px 4px rgba(60,40,20,.15)}
+#start #langBtn{display:none}
+.hub{display:inline-block;margin-top:10px;font-size:13px;color:var(--mute)}
+/* 結果のボタン（全ゲーム共通の2行。手本は corn） */
+#res .card{display:flex;flex-direction:column}
+.acts{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.acts .row{display:flex;gap:8px;justify-content:center}
+.pill{flex:1 1 0;height:46px;border-radius:23px;border:2px solid var(--ink);background:var(--paper);font-weight:700;font-size:15px;padding:0 8px;white-space:nowrap;text-decoration:none;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box}
+#res #share{flex-grow:1.3;font-weight:900;background:var(--shiba);border-color:var(--shiba);color:#fff}
+.acts .tip .pill{flex:0 1 auto;height:38px;padding:0 22px;font-size:13px;border-width:1.5px;color:var(--mute);border-color:#cdb9a2}
+/* ランキング（歴代／デイリーの TOP100。表の中だけスクロール） */
+.rankBox{display:contents}
+.rankBox::before{content:"";border-top:1px dashed #e2d3bd;margin-top:10px}
+.rk-form{display:flex;gap:6px;margin:8px 0 4px}
+.rk-form input{flex:1;min-width:0;height:40px;border:1.5px solid #cdb9a2;border-radius:10px;padding:0 10px;font:inherit;font-size:15px;background:#fff;-webkit-user-select:text;user-select:text}
+.rk-form button{height:40px;border:0;border-radius:10px;background:var(--ink);color:var(--paper);font-weight:700;padding:0 14px}
+.rk-err{font-size:12px;color:#c0300f;min-height:16px;text-align:left}
+.rk-tabs{display:flex;gap:6px;margin:4px 0 6px}
+.rk-tabs button{flex:1;height:34px;border-radius:17px;border:1.5px solid #cdb9a2;background:transparent;font-weight:700;font-size:13px;color:var(--mute)}
+.rk-tabs button.on{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.rankBox ol{position:relative;height:240px;min-height:72px;flex:0 1 auto;overflow-y:auto;overscroll-behavior:contain;list-style:none;counter-reset:rk;margin:0;padding:0 4px;text-align:left;font-size:14px}
+.rankBox li{display:flex;gap:6px;align-items:baseline;counter-increment:rk;padding:4px 2px;border-bottom:1px dashed #eadfcd}
+.rankBox li::before{content:counter(rk) ".";flex:none;min-width:2.2em;text-align:right;color:var(--mute)}
+.rankBox li span{flex:0 1 auto;min-width:0;max-width:11em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rankBox li b{flex:none;margin-left:auto}
+.rankBox li.me{background:#fde6c8;border-radius:6px}
+.rk-note{font-size:11px;color:var(--mute);margin:6px 0 4px}
+/* ジーニーのオーバーレイ：ジーニーが body の最後に広告の高さの余白（#geniee_overlay_boots）を足すので、その分だけゲームを上に縮める（animal-rocket の写し） */
+#c{height:calc(100% - var(--adB,0px))}   /* canvas は height:auto だと上下の指定で伸びないので、高さを計算する */
+.ov,#arrows .dn{margin-bottom:var(--adB,0px)}
 #arrows i{position:fixed;font-style:normal;font-size:32px;font-weight:700;line-height:1;color:var(--paper);text-shadow:0 0 2px rgba(60,40,20,.7),0 1px 6px rgba(60,40,20,.5);pointer-events:none;animation:blink 2.4s ease-in-out infinite}
 #arrows .up{top:calc(104px + env(safe-area-inset-top));left:50%;transform:translateX(-50%)}#arrows .dn{bottom:calc(60px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%)}
 #arrows .lt{left:calc(10px + env(safe-area-inset-left));top:50%;transform:translateY(-50%)}#arrows .rt{right:calc(10px + env(safe-area-inset-right));top:50%;transform:translateY(-50%)}
@@ -64,49 +136,68 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
 </style>
 </head>
 <body>
+<!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NPJ5KTSD" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
 <canvas id="c"></canvas>
 <div id="red"></div>
-<div id="load">柴犬の毛を並べています…</div>
-<div id="hud" class="hide"><div class="hb"><div id="dia">毛玉サイズ 0.0cm</div><div id="timer">残り 60秒</div></div></div>
-<button id="snd" class="hide" aria-label="音">♪</button>
+<div id="load"><span lang="ja">柴犬の毛を並べています…</span><span lang="en">Combing the shiba…</span></div>
+<div id="hud" class="hide"><div class="hb"><div id="dia"></div><div id="timer"></div></div></div>
+<button id="langBtn" class="hide" type="button"><span lang="ja">English</span><span lang="en">日本語</span></button>
+<button id="snd" class="hide" aria-label="音 / Sound">♪</button>
 <div id="meter" class="hide"><div></div><i id="mFloor"></i></div>
 <button class="tb" id="adj">調整</button>
 <div id="arrows" class="hide"><i class="up">△</i><i class="dn">▽</i><i class="lt">◁</i><i class="rt">▷</i></div>
 <div id="msg"></div>
-<div id="growlT">ヴヴヴ……</div>
-<div id="gau" class="mincho">ガウッ！</div>
+<div id="growlT"><span lang="ja">ヴヴヴ……</span><span lang="en">Grrrr…</span></div>
+<div id="gau" class="mincho"></div>
 
 <div id="start" class="ov">
   <div class="card">
-    <h1 class="mincho">柴犬<small>（換毛期）</small></h1>
-    <p class="lead">60秒で沢山の毛を抜こう！</p>
+    <h1 class="mincho"><span lang="ja">柴犬<small>（換毛期）</small></span><span lang="en">Shedding Shiba</span></h1>
+    <p class="lead"><span lang="ja">60秒で沢山の毛を抜こう！</span><span lang="en">Pluck as much fur as you can in 60 seconds!</span></p>
     <ul class="rules">
-      <li data-n="1">毛を<b>つまんで、引っぱる</b>と抜ける。<br>白く<b>浮いた毛</b>はごっそり抜けて<b>タイムボーナス</b>。</li>
-      <li data-n="2"><b>ゆっくり</b>引けば、気づかれにくい。<br>しっかり生えた毛や顔まわり・しっぽは<b>痛い</b>。</li>
-      <li data-n="3"><b>ガウッ！</b>と怒られたら、そこで終わり。<br>振り向く、うなる、尻尾を立てる、など要注意</li>
+      <li data-n="1"><span lang="ja">毛を<b>つまんで、引っぱる</b>と抜ける。<br>白く<b>浮いた毛</b>はごっそり抜けて<b>タイムボーナス</b>。</span><span lang="en"><b>Pinch and pull</b> to pluck fur.<br>Grab the fluffy <b>white tufts</b> for a big haul and <b>bonus time</b>.</span></li>
+      <li data-n="2"><span lang="ja"><b>ゆっくり</b>引けば、気づかれにくい。<br>しっかり生えた毛や顔まわり・しっぽは<b>痛い</b>。</span><span lang="en">Pull <b>slowly</b> and they won't notice.<br>Firm fur, the face and the tail <b>hurt</b>.</span></li>
+      <li data-n="3"><span lang="ja"><b>ガウッ！</b>と怒られたら、そこで終わり。<br>振り向く、うなる、尻尾を立てる、など要注意</span><span lang="en">One <b>WOOF!</b> and it's over.<br>Watch out for turning around, growling, a raised tail…</span></li>
     </ul>
-    <div class="cam"><b>カメラ操作方法</b><br>PC：矢印キー、ホイール操作<br>スマホ：画面ドラッグ、ピンチ操作</div>
-    <button class="big" id="go" disabled>読みこみ中…</button>
+    <div class="cam"><span lang="ja"><b>カメラ操作方法</b><br>PC：矢印キー、ホイール操作<br>スマホ：画面ドラッグ、ピンチ操作</span><span lang="en"><b>Camera</b><br>PC: arrow keys, mouse wheel<br>Phone: drag the screen, pinch</span></div>
+    <button class="big" id="go" disabled><span lang="ja">読みこみ中…</span><span lang="en">Loading…</span></button>
+    <a class="hub" data-waqk-hub-link href="https://waqk.jp/?from=shibainu"><span lang="ja">ほかのゲームを見る</span><span lang="en">More games</span></a>
     <div class="best" id="best"></div>
+    <div><button class="sub" id="langStart" type="button"><span lang="ja">English</span><span lang="en">日本語</span></button></div>
   </div>
 </div>
 
 <div id="res" class="ov hide">
   <div class="card">
-    <img id="shot" alt="今回の毛玉と柴犬">
-    <div id="rDia">直径 0.0cm</div>
-    <div id="rHiki">柴犬 0.00匹分の毛玉</div>
-    <div id="rTtl">毛づくろい見習い</div>
-    <button class="big" id="again">もう一度</button>
-    <div class="row">
-      <a class="sub" id="shareX" target="_blank" rel="noopener">X に投稿</a>
-      <button class="sub" id="rankBtn">この端末の記録</button>
+    <img id="shot" alt="">
+    <div id="rDia"></div>
+    <div id="rHiki"></div>
+    <div id="rTtl"></div>
+    <div class="acts">
+      <!-- ボタンは2行（2026-11-02 全ゲーム共通の並び。手本は corn） -->
+      <div class="row">
+        <button class="pill" id="share" type="button"><span lang="ja">Xでシェア</span><span lang="en">Share on X</span></button>
+        <button class="pill" id="rankToggle" type="button"><span class="rk-open"><span lang="ja">ランキング</span><span lang="en">Ranking</span></span><span class="rk-close hide"><span lang="ja">閉じる</span><span lang="en">Close</span></span></button>
+        <button class="pill" id="again" type="button"><span lang="ja">もう一度</span><span lang="en">Play again</span></button>
+      </div>
+      <div class="row tip">
+        <button class="pill" type="button" data-waqk-more-button><span lang="ja">ほかのゲーム</span><span lang="en">More games</span></button>
+        <a class="pill" href="https://ofuse.me/o?uid=225115" target="_blank" rel="noopener"><span lang="ja">開発者を応援</span><span lang="en">Support the dev</span></a>
+      </div>
     </div>
-    <div id="rank" class="hide"><b>この端末の記録（毛玉の直径）</b><ol id="rankList"></ol><div class="note">記録はこの端末のブラウザにだけ残ります。</div></div>
+    <div class="rankBox hide" id="rankBox">
+      <form class="rk-form" id="rkForm"><input id="rkName" maxlength="10" autocomplete="nickname" placeholder="名前（10文字まで）" data-ph-en="Your name (max 10)"><button type="submit"><span lang="ja">登録</span><span lang="en">Submit</span></button></form>
+      <div class="rk-err" id="rkErr"></div>
+      <div class="rk-tabs"><button type="button" id="tabAll" class="on"><span lang="ja">歴代</span><span lang="en">All-time</span></button><button type="button" id="tabDay"><span lang="ja">デイリー</span><span lang="en">Daily</span></button></div>
+      <ol id="rkList"></ol>
+      <div class="rk-note"><span lang="ja">デイリーは毎日0時（日本時間）にリセット</span><span lang="en">Daily resets at 0:00 JST</span></div>
+    </div>
   </div>
 </div>
 <div id="panel" class="hide"></div>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="vendor/three.min.js"></script><!-- three.js r128（モックと同じ版を同梱。2026-11-22 運営者） -->
 <script>
 {
 __JS__

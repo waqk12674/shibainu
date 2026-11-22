@@ -2,7 +2,19 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "shibainu",
   "compatibility_date": "2026-10-01",
-  // 試験中は routes を書かない（書くと waqk.jp/shibainu/* が作られて公開状態になる）。workers.dev だけで遊ぶ
+  // 公開URLは https://waqk.jp/shibainu/ 。試験中は routes を書かない（書くと waqk.jp/shibainu/* が作られて公開状態になる）
   "workers_dev": true,
-  "assets": { "directory": "." }
+  // ランキングの API（/api/scores）と英語版（/en/）だけを Worker が処理する。それ以外の静的ファイルは Worker を通らない
+  // （Workers のリクエストに数えない）。公開するファイルは .assetsignore の許可リストで決める
+  "main": "worker/index.js",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    // /shibainu/… は waqk.jp のルートから届くとき、先頭なしは workers.dev・wrangler dev のとき
+    "run_worker_first": ["/shibainu/api/*", "/shibainu/en", "/shibainu/en/", "/api/*", "/en", "/en/"]
+  },
+  // 全国ランキング（表は schema.sql）
+  "d1_databases": [
+    { "binding": "DB", "database_name": "shibainu-scores", "database_id": "7e5259fb-8cb4-4b32-9df1-304724c0bfcd" }
+  ]
 }

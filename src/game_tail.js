@@ -1,4 +1,39 @@
 const SND_SRC = __SND__;
+// ================= 言語（日本語／English） =================
+// 決め方：?lang= → /en/（Worker が <html lang="en"> にする）→ 画面のボタンで選んで保存した言語 → navigator.language。
+// <html lang>・title は書き換えず、<html data-ui-lang> で文言だけ切り替える（共通ルール「言語」）
+const LANG = (() => {
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'ja' || q === 'en') return q;
+  if (document.documentElement.lang === 'en') return 'en';
+  try { const v = localStorage.getItem('shiba_lang'); if (v === 'ja' || v === 'en') return v; } catch (e) {}
+  return /^ja/i.test(navigator.language || 'ja') ? 'ja' : 'en';
+})();
+document.documentElement.dataset.uiLang = LANG;
+const STR = {
+  ja: { tut: '毛をつまんで、そっと引っぱってみよう', empty: 'もう抜ける毛がない', yelp: 'キャン…', thin: 'そこはもう毛が薄い…', big: 'ごっそり！',
+    plus: b => `＋${b}秒`, hudDia: d => `毛玉サイズ ${d}cm`, hudTime: t => `残り ${t}秒`, gau: 'ガウッ！', timeup: 'そこまで！', start: 'はじめる',
+    rDia: d => `直径 ${d}cm`, rHiki: h => `柴犬 ${h}匹分の毛玉`, rTtl: t => `称号「${t}」`,
+    titles: ['初めての毛づくろい', '毛づくろい見習い', '一般的な毛づくろい', '慣れてきた毛づくろい', 'プロの毛づくろい', '伝説の毛づくろい'],
+    share: (d, h) => `「柴犬（換毛期）」で 直径${d}cm（柴犬${h}匹分）の毛玉ができた！ #柴犬換毛期 #WAQK`,
+    best: (d, h) => `この端末の最高：毛玉 直径 ${d}cm（柴犬${h}匹分）`,
+    shot: '今回の毛玉と柴犬', ng: 'その名前は登録できません', needName: '名前を入れてください', tooFast: '少し待ってから登録してください', netErr: 'つながりませんでした。もう一度試してください', done: '登録しました', noData: 'まだ記録がありません' },
+  en: { tut: 'Pinch some fur and pull gently', empty: 'No fur left here', yelp: 'Yelp!', thin: "That spot's getting thin…", big: 'Big tuft!',
+    plus: b => `+${b}s`, hudDia: d => `Fur ball ${d}cm`, hudTime: t => `Time ${t}s`, gau: 'WOOF!', timeup: "Time's up!", start: 'Start',
+    rDia: d => `${d} cm across`, rHiki: h => `${h} shibas' worth of fur`, rTtl: t => `Title: “${t}”`,
+    titles: ['First-time Groomer', 'Groomer in Training', 'Everyday Groomer', 'Seasoned Groomer', 'Pro Groomer', 'Legendary Groomer'],
+    share: (d, h) => `I made a ${d}cm fur ball (${h} shibas' worth) in "Shedding Shiba"! #WAQK`,
+    best: (d, h) => `Best on this device: ${d}cm fur ball (${h} shibas)`,
+    shot: 'Your fur ball and the shiba', ng: "That name can't be used.", needName: 'Enter a name', tooFast: 'Please wait a moment and try again', netErr: "Couldn't connect. Please try again.", done: 'Submitted!', noData: 'No records yet' },
+};
+const TX = STR[LANG];
+for (const el of document.querySelectorAll('[data-ph-en]')) if (LANG === 'en') el.placeholder = el.dataset.phEn;
+const setLang = l => { try { localStorage.setItem('shiba_lang', l); } catch (e) {} const u = new URL(location.href); u.searchParams.delete('lang'); location.replace(u); };
+// ================= 計測（GTM の dataLayer。共通ルール「計測」） =================
+window.dataLayer = window.dataLayer || [];
+const ga = (event, p) => { try { window.dataLayer.push(Object.assign({ event, game_id: 'shibainu' }, p)); } catch (e) {} };
+let gaStarted = false;
+const gaStart = () => { if (!gaStarted) { gaStarted = true; ga('game_start'); } };   // 1プレイ1回。最初に毛をつまんだとき（何もせず終わったら結果で予備に送る）
 // ================= ゲーム =================
 const LS = { get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
 const G = { angerK: 0.8, decay: 0.10, irrit: 0.006, radius: 0.03, fluff: 20, slowSp: 400, moveK: 0.33, holdK: 0.1, time: 60, flEvery: 4.5, flLife: 8, flMax: 2, bonusU: 90, showMeter: false, noAnger: false };
@@ -39,14 +74,14 @@ let pull = null;
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function setAlive(geo, list, val) { const a = geo.attributes.aAlive.array; for (const s of list) a.fill(val, s * PTS * 2, (s + 1) * PTS * 2); geo.attributes.aAlive.needsUpdate = true; }
 function pointerWorld(cx, cy, depthPoint) {
-  ndc.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1);
+  ndc.set(cx / cv.clientWidth * 2 - 1, -(cy / cv.clientHeight) * 2 + 1);
   const p = new THREE.Vector3(ndc.x, ndc.y, 0.5).unproject(camera), dir = p.sub(camera.position).normalize();
   const n = camera.getWorldDirection(new THREE.Vector3()), d = n.dot(depthPoint.clone().sub(camera.position)) / n.dot(dir);
   return camera.position.clone().addScaledVector(dir, d);
 }
-function toScreen(v) { const p = v.clone().project(camera); return { x: (p.x + 1) * innerWidth / 2, y: (1 - p.y) * innerHeight / 2 }; }
+function toScreen(v) { const p = v.clone().project(camera); return { x: (p.x + 1) * cv.clientWidth / 2, y: (1 - p.y) * cv.clientHeight / 2 }; }
 function pick(e) {
-  ndc.set(e.clientX / innerWidth * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  ndc.set(e.clientX / cv.clientWidth * 2 - 1, -(e.clientY / cv.clientHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
   const h = ray.intersectObjects(PARTS.map(p => p.pick))[0]; return h;
 }
 function gather(geo, center, R, prob, list, info, cap = 700) {
@@ -99,13 +134,13 @@ cv.addEventListener('pointerdown', e => {
   // 引く房をつくる
   const tuft = makeTuft(P_, uL, gL);
   pull = { id: e.pointerId, P: P_, local, uL, gL, n, sens, tight, left, tuft, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, sp: 0, req: 30 + 105 * Math.pow(tight, 1.3), floater: flo };
-  setAlive(P_.p.ug, uL, 0); setAlive(P_.p.gg, gL, 0);
+  setAlive(P_.p.ug, uL, 0); setAlive(P_.p.gg, gL, 0); gaStart();
   cv.setPointerCapture(e.pointerId); idleT = 0; audioInit();
 });
 cv.addEventListener('pointermove', e => {
   if (pull && e.pointerId === pull.id) { pull.x = e.clientX; pull.y = e.clientY; }
   if (orbit && e.pointerId === orbit.id && !pinch) {   // つかんだ床ごと回す向き。画面の幅いっぱいで約半周
-    az += (e.clientX - orbit.x) * Math.PI / innerWidth; el = Math.max(0.15, Math.min(1.1, el + (e.clientY - orbit.y) * 1.6 / innerHeight));
+    az += (e.clientX - orbit.x) * Math.PI / cv.clientWidth; el = Math.max(0.15, Math.min(1.1, el + (e.clientY - orbit.y) * 1.6 / cv.clientHeight));
     orbit.x = e.clientX; orbit.y = e.clientY;
   }
 });
@@ -195,19 +230,19 @@ function pop(q, pinchW) {
   flying.push({ mesh, t: 0, from, to: cs.to, c: cs.c, rc: cs.rc, cur: new Float32Array(from.length), addV });
   for (let i = 0; i < 6 + Math.min(20, q.n / 15); i++) spawn({ kind: 'mote', p: pinchW.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.02 + Math.random() * 0.05, (Math.random() - 0.5) * 0.08), age: 0, life: 2.5 + Math.random() * 2.5, size: 0.003 + Math.random() * 0.004, col: [1, 0.95, 0.85], a: 0.8 });
   pull = null;
-  if (q.n < 6) { sfx.empty(); flash('もう抜ける毛がない'); } else { sfx.pluck(frac > 0.002); }
-  if (q.sens > 2.6) { flash('キャン…'); sfx.yelp(); } else if (q.left < 0.45) flash('そこはもう毛が薄い…');
+  if (q.n < 6) { sfx.empty(); flash(TX.empty); } else { sfx.pluck(frac > 0.002); }
+  if (q.sens > 2.6) { flash(TX.yelp); sfx.yelp(); } else if (q.left < 0.45) flash(TX.thin);
   if (q.floater) {
     removeFloater(q.floater, false);
     const b = Math.max(0, Math.min(6, Math.round(units / G.bonusU) - 3));
     if (b) { timeLeft += b; bonusHold += b; sfx.bonus(); bonusFly(b, toScreen(pinchW)); }   // 時間はすぐ足し、表示は「＋○秒」が届いてから
-    else flash('ごっそり！');   // ボーナスのときは「＋○秒」だけ（文字が重ならないように）
+    else flash(TX.big);   // ボーナスのときは「＋○秒」だけ（文字が重ならないように）
   }
 }
 // ---- 時間ボーナスの演出：抜いた所から「＋○秒」が左上の残り時間へ飛んでいき、届いたら残り時間が増える
 let bonusHold = 0;
 function bonusFly(b, from) {
-  const el = document.createElement('div'); el.className = 'bfly'; el.textContent = `＋${b}秒`; document.body.appendChild(el);
+  const el = document.createElement('div'); el.className = 'bfly'; el.textContent = TX.plus(b); document.body.appendChild(el);
   const r = $('timer').getBoundingClientRect(), dx = r.right + 8 - from.x, dy = r.top + r.height / 2 - from.y;
   el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
   el.animate([
@@ -458,12 +493,13 @@ function flash(t) { const m = $('msg'); m.textContent = t; m.style.opacity = 1; 
 const keys = {}; addEventListener('keydown', e => { keys[e.key] = true; }); addEventListener('keyup', e => { keys[e.key] = false; });
 
 function resize() {
-  const dpr = Math.min(devicePixelRatio || 1, P.dpr); renderer.setPixelRatio(dpr); renderer.setSize(innerWidth, innerHeight, false);
-  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
-  U.uPx.value = 2 * Math.tan(camera.fov * Math.PI / 360) / (innerHeight * dpr);
-  pMat.uniforms.uPxS.value = innerHeight * dpr * 0.5 * camera.projectionMatrix.elements[5];
+  const w = cv.clientWidth || innerWidth, h = cv.clientHeight || innerHeight;
+  const dpr = Math.min(devicePixelRatio || 1, P.dpr); renderer.setPixelRatio(dpr); renderer.setSize(w, h, false);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+  U.uPx.value = 2 * Math.tan(camera.fov * Math.PI / 360) / (h * dpr);
+  pMat.uniforms.uPxS.value = h * dpr * 0.5 * camera.projectionMatrix.elements[5];
 }
-addEventListener('resize', resize); resize();
+addEventListener('resize', resize); resize(); new ResizeObserver(resize).observe(cv);   // 広告の余白で canvas が縮んだときも
 const camD = { d: 2.4, tgt: new THREE.Vector3(0.1, 0.16, 0) };
 function fitView(az, el, tanV, tanH) {
   const ce = Math.cos(el), f = new THREE.Vector3(-ce * Math.cos(az), -Math.sin(el), -ce * Math.sin(az));
@@ -564,15 +600,15 @@ function loop(now) {
     else if (pull) idleT = 0; else { idleT += dt; if (idleT > 0.6) anger = Math.max(irrit, anger - G.decay * dt); }
     anger = Math.max(anger, irrit);
     const dia = ballVolShown > 0 ? Math.cbrt(3 * ballVolShown / (4 * Math.PI)) * 200 : 0;
-    const tl = Math.max(0, Math.ceil(timeLeft - bonusHold)); $('timer').textContent = `残り ${tl}秒`; $('timer').classList.toggle('low', tl <= 10);
-    $('dia').textContent = `毛玉サイズ ${dia.toFixed(1)}cm`;
+    const tl = Math.max(0, Math.ceil(timeLeft - bonusHold)); $('timer').textContent = TX.hudTime(tl); $('timer').classList.toggle('low', tl <= 10);
+    $('dia').textContent = TX.hudDia(dia.toFixed(1));
     if (G.showMeter) { $('meter').firstChild.style.width = Math.min(100, anger * 100) + '%'; $('mFloor').style.left = Math.min(100, irrit * 100) + '%'; }
   }
   if ((state === 'gau' || state === 'timeup') && performance.now() - gauT > 1600) showResult();
   if (flashT > 0) {
     flashT -= dt; if (flashT <= 0) $('msg').style.opacity = 0;
     const s = toScreen(dog.localToWorld(new THREE.Vector3(-0.02, 0.62, 0)));   // 柴犬の上
-    const mw = $('msg').offsetWidth / 2 + 8; $('msg').style.left = Math.max(mw, Math.min(innerWidth - mw, s.x)) + 'px';   // 画面の端からはみ出さない $('msg').style.top = Math.max(110, Math.min(innerHeight - 80, s.y)) + 'px';
+    const mw = $('msg').offsetWidth / 2 + 8; $('msg').style.left = Math.max(mw, Math.min(cv.clientWidth - mw, s.x)) + 'px';   // 画面の端からはみ出さない $('msg').style.top = Math.max(110, Math.min(cv.clientHeight - 80, s.y)) + 'px';
   }
   tells(dt); updateFloaters(dt); updateBall(dt); updateFlying(dt); updateParts(dt); camUpdate(dt);
   for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);
@@ -583,27 +619,27 @@ function startGau() {
   state = 'gau'; endBy = 'gau'; gauT = performance.now(); shake = 0.45; anger = 1;
   if (pull) endPull({ pointerId: pull.id });
   shellU.uShellL.value = P.shellL * 1.25;                           // 毛が逆立つ
-  const g = $('gau'); g.textContent = 'ガウッ！'; g.style.opacity = 1; g.animate([{ transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1.15)', opacity: 1, offset: 0.4 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
+  const g = $('gau'); g.textContent = TX.gau; g.style.opacity = 1; g.animate([{ transform: 'translate(-50%,-50%) scale(.4)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1.15)', opacity: 1, offset: 0.4 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
   sfx.bark(); $('red').style.opacity = 1;
 }
 function startTimeUp() {
   state = 'timeup'; endBy = 'time'; gauT = performance.now(); anger = 0;   // 時間切れ：犬は落ち着いたまま
   if (pull) endPull({ pointerId: pull.id });
-  const g = $('gau'); g.textContent = 'そこまで！'; g.style.opacity = 1;
+  const g = $('gau'); g.textContent = TX.timeup; g.style.opacity = 1;
   g.animate([{ transform: 'translate(-50%,-50%) scale(.6)', opacity: 0 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }], { duration: 380, easing: 'ease-out' });
   sfx.bonus();
 }
 // 称号は毛玉の直径（cm）で決める（2026-11-22 運営者）
-const TITLES = [[20, '初めての毛づくろい'], [40, '毛づくろい見習い'], [60, '一般的な毛づくろい'], [80, '慣れてきた毛づくろい'], [100, 'プロの毛づくろい'], [Infinity, '伝説の毛づくろい']];
+const TITLE_CM = [20, 40, 60, 80, 100, Infinity];   // 初めての／見習い／一般的な／慣れてきた／プロの／伝説の毛づくろい（名前は STR.titles）
 function showResult() {
-  state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer', 'snd'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
+  state = 'result'; $('gau').style.opacity = 0; ['arrows', 'hud', 'timer', 'snd', 'langBtn'].forEach(id => $(id).classList.add('hide')); $('red').style.opacity = 0;
   const v = ballVolTarget, dia = v > 0 ? Math.cbrt(3 * v / (4 * Math.PI)) * 200 : 0, hiki = v / META.vol;
-  const ttl = TITLES.find(t => dia < t[0])[1];
-  $('rDia').textContent = `直径 ${dia.toFixed(1)}cm`; $('rHiki').textContent = `柴犬 ${hiki.toFixed(2)}匹分の毛玉`; $('rTtl').textContent = `称号「${ttl}」`;
-  const text = `「柴犬（換毛期）」で 直径${dia.toFixed(1)}cm（柴犬${hiki.toFixed(2)}匹分）の毛玉ができた！`;
-  $('shareX').href = 'https://x.com/intent/post?text=' + encodeURIComponent(text) + '&url=' + encodeURIComponent('https://waqk.jp/');
+  const ttl = TX.titles[TITLE_CM.findIndex(c => dia < c)];
+  $('rDia').textContent = TX.rDia(dia.toFixed(1)); $('rHiki').textContent = TX.rHiki(hiki.toFixed(2)); $('rTtl').textContent = TX.rTtl(ttl); $('shot').alt = TX.shot;
+  gaStart(); ga('game_end', { result: endBy === 'time' ? 'time_up' : 'angry', score: +dia.toFixed(1) });
+  shareText = TX.share(dia.toFixed(1), hiki.toFixed(2));
   const rk = LS.get('shiba_rank2', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank2', rk.slice(0, 10));
-  $('rankList').innerHTML = rk.slice(0, 10).map(r => `<li><span>直径 ${r.d}cm</span><span>${r.h}匹分</span></li>`).join('');
+  lastRec = { score: Math.round(dia * 10), plucks, secs: Math.round((performance.now() - playT0) / 100) / 10 }; rkSent = false; rankOpen(false);
   try { makeShot(); } catch (e) { console.warn(e); }
   $('res').classList.remove('hide');
 }
@@ -636,15 +672,56 @@ function reset() {
   for (let i = parts.length - 1; i >= 0; i--) if (parts[i].kind !== 'dust') parts.splice(i, 1);
   while (floaters.length) removeFloater(floaters[0], false);
 }
+let shareText = '', lastRec = null, rkSent = false, playT0 = 0;
 function begin() {
+  if (state === 'result') ga('game_retry');
+  gaStarted = false; playT0 = performance.now();
   audioInit(); reset(); state = 'play'; az = -0.72; el = 0.48;
-  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'timer', 'snd'].forEach(id => $(id).classList.remove('hide'));
+  ['start', 'res'].forEach(id => $(id).classList.add('hide')); ['arrows', 'hud', 'timer', 'snd', 'langBtn'].forEach(id => $(id).classList.remove('hide'));
   $('meter').classList.toggle('hide', !G.showMeter);
-  flash('毛をつまんで、そっと引っぱってみよう');
+  flash(TX.tut);
 }
 $('go').onclick = begin; $('again').onclick = begin;
 addEventListener('wheel', e => { zoomU = Math.max(0.45, Math.min(1.2, zoomU * (1 + e.deltaY * 0.001))); }, { passive: true });
-$('rankBtn').onclick = () => $('rank').classList.toggle('hide');
+$('share').onclick = () => { ga('share', { method: 'x' }); window.open('https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(LANG === 'en' ? 'https://waqk.jp/shibainu/en/' : 'https://waqk.jp/shibainu/'), '_blank', 'noopener'); };
+$('langStart').onclick = $('langBtn').onclick = () => setLang(LANG === 'ja' ? 'en' : 'ja');
+// ---- 全国ランキング（歴代／デイリーの TOP100。手本は sarumo-kikara・corn）。API はランキングを初めて開いたときと登録のときだけ
+const API = 'api/scores';
+const PLAYER = (() => { let p = LS.get('shiba_player', ''); if (!/^[A-Za-z0-9-]{8,40}$/.test(p)) { p = crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + '-' + Math.random().toString(36).slice(2, 10); LS.set('shiba_player', p); } return p; })();
+let board = null, boardT = 0, rkTab = 'all';
+$('rkName').value = LS.get('shiba_name', '');
+function rankOpen(open) {
+  $('rankBox').classList.toggle('hide', !open);
+  $('rankToggle').querySelector('.rk-open').classList.toggle('hide', open); $('rankToggle').querySelector('.rk-close').classList.toggle('hide', !open);
+  $('rkForm').classList.toggle('hide', rkSent || !lastRec); $('rkErr').textContent = '';
+  if (open) { if (!board || Date.now() > boardT + 864e5) loadBoard(); else drawBoard(); }
+}
+async function loadBoard() {
+  try { const r = await fetch(`${API}?player=${encodeURIComponent(PLAYER)}`); if (!r.ok) throw 0; setBoard(await r.json()); } catch (e) { $('rkErr').textContent = TX.netErr; }
+}
+function setBoard(b) { board = b; boardT = b.dayStart || Date.now(); drawBoard(); }
+function drawBoard() {
+  const list = (board && board[rkTab === 'all' ? 'all' : 'daily']) || [], ol = $('rkList');
+  $('tabAll').classList.toggle('on', rkTab === 'all'); $('tabDay').classList.toggle('on', rkTab === 'day');
+  ol.innerHTML = ''; if (!list.length) { const li = document.createElement('li'); li.textContent = TX.noData; ol.append(li); return; }
+  for (const x of list) { const li = document.createElement('li'), n = document.createElement('span'), b = document.createElement('b'); n.textContent = x.name; b.textContent = (x.score / 10).toFixed(1) + 'cm'; li.append(n, b); if (x.me) li.className = 'me'; ol.append(li); }
+  const me = ol.querySelector('.me'); ol.scrollTop = me ? me.offsetTop - ol.clientHeight / 2 + me.offsetHeight / 2 : 0;   // 表の中だけ動かす（scrollIntoView はページまで動かす）
+}
+$('rankToggle').onclick = () => rankOpen($('rankBox').classList.contains('hide'));
+$('tabAll').onclick = () => { rkTab = 'all'; drawBoard(); }; $('tabDay').onclick = () => { rkTab = 'day'; drawBoard(); };
+$('rkForm').onsubmit = async ev => {
+  ev.preventDefault(); const name = $('rkName').value.trim(); $('rkErr').textContent = '';
+  if (!name) { $('rkErr').textContent = TX.needName; return; }
+  if (!lastRec || rkSent) return;
+  try {
+    const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.assign({ player: PLAYER, name }, lastRec)) });
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 400 && j.error === 'ng_name') { $('rkErr').textContent = TX.ng; return; }   // 記録は残したまま、名前を直して登録し直せる
+    if (r.status === 429) { $('rkErr').textContent = TX.tooFast; return; }
+    if (!r.ok) throw 0;
+    rkSent = true; LS.set('shiba_name', name); $('rkForm').classList.add('hide'); $('rkErr').textContent = TX.done; setBoard(j);
+  } catch (e) { $('rkErr').textContent = TX.netErr; }
+};
 $('snd').classList.toggle('off', muted);
 $('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').classList.toggle('off', muted); if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
 if (!/[?&]debug=1/.test(location.search)) $('adj').classList.add('hide');   // 調整パネルは ?debug=1 のときだけ
@@ -668,8 +745,59 @@ function autoPluck(n) {   // 確認用：体のあちこちから自動で抜く
     flying[flying.length - 1].t = 0.999;
   }
 }
-window.__game = { P, G, begin, fl: () => floaters, cam3: () => camera, auto: autoPluck,  zoom: v => { zoomU = v; }, cam: (a, e) => { az = a; el = e; }, info: () => ({ plucks, irrit, pull: !!pull, ballR, timeLeft, floaters: floaters.map(f => ({ r: f.r, age: f.age, c: f.P.parent.localToWorld(f.c.clone()).toArray() })) }), state: () => state, anger: v => (v == null ? anger : (anger = v)), ball: () => ballVolTarget, pickAt: (x, y) => !!pick({ clientX: x, clientY: y }) };
+if (/[?&]debug=1/.test(location.search)) window.__game = { P, G, begin, fl: () => floaters, cam3: () => camera, auto: autoPluck,  zoom: v => { zoomU = v; }, cam: (a, e) => { az = a; el = e; }, info: () => ({ plucks, irrit, pull: !!pull, ballR, timeLeft, floaters: floaters.map(f => ({ r: f.r, age: f.age, c: f.P.parent.localToWorld(f.c.clone()).toArray() })) }), state: () => state, anger: v => (v == null ? anger : (anger = v)), ball: () => ballVolTarget, pickAt: (x, y) => !!pick({ clientX: x, clientY: y }) };
+// ---- ジーニーのオーバーレイ（PC 1689081・スマホ 1689080。animal-rocket の写し。2026-11-22）。ページを開いたときに1回だけ置く。
+// PC かスマホかは 728px の帯が入る幅かで決める。横向きのスマホは出さない。手元・?debug=1・?adtest=1・?noads=1・Cookie では読まない。
+// タグはジーニーから届いたもの（C:\src\geniee-tags-261120.txt）を一字も変えずに入れる。wrapper.min.js が読めなければ div を外す。
+// ジーニーが body の最後に足す余白（#geniee_overlay_boots）の高さだけ、ゲーム（canvas）を上に縮める（--adB）
+const GENIEE_HEAD = `<!-- Geniee Wrapper Head Tag -->
+<script>
+  window.gnshbrequest = window.gnshbrequest || {cmd:[]};
+  window.gnshbrequest.cmd.push(function(){
+    window.gnshbrequest.forceInternalRequest();
+  });
+<\/script>
+<script async src="https://cpt.geniee.jp/hb/v1/237584/3621/wrapper.min.js"><\/script>
+<script async src="https://securepubads.g.doubleclick.net/tag/js/gpt.js"><\/script>
+<!-- /Geniee Wrapper Head Tag -->`;
+const GENIEE_PC_OVERLAY = `<!-- Geniee Wrapper Body Tag 1689081 -->
+<div data-cptid="1689081" style="display: block;">
+<script>
+  window.gnshbrequest.cmd.push(function() {
+    window.gnshbrequest.applyPassback("1689081", "[data-cptid='1689081']");
+  });
+<\/script>
+</div>
+<!-- /Geniee Wrapper Body Tag 1689081 -->`;
+const GENIEE_SP_OVERLAY = `<!-- Geniee Wrapper Body Tag 1689080 -->
+<div data-cptid="1689080" style="display: block;">
+<script>
+  window.gnshbrequest.cmd.push(function() {
+    window.gnshbrequest.applyPassback("1689080", "[data-cptid='1689080']");
+  });
+<\/script>
+</div>
+<!-- /Geniee Wrapper Body Tag 1689080 -->`;
+function showGenieeOverlay() {
+  if (!ADS.banner || ADS.dry || ADS.failed || ADS.geniee) return;
+  if (innerWidth > innerHeight && innerHeight < 500) return;
+  const pc = innerWidth - 16 >= 728;
+  if (ADS[pc ? 'provider_pc' : 'provider_sp'] !== 'geniee') return;
+  ADS.geniee = true;
+  const frag = (html) => document.createRange().createContextualFragment(html);
+  const body = frag(pc ? GENIEE_PC_OVERLAY : GENIEE_SP_OVERLAY), div = body.querySelector('[data-cptid]');
+  const head = frag(GENIEE_HEAD);
+  head.querySelector('script[src*="cpt.geniee.jp"]').addEventListener('error', () => { ADS.failed = true; div.remove(); });
+  if (!document.querySelector('script[src*="cpt.geniee.jp"]')) document.head.append(head);
+  document.body.append(body);
+}
+{ // 広告の余白の高さを --adB に（余白が足されたら、その大きさの変化も追う）
+  const ro = new ResizeObserver(es => { for (const e of es) document.documentElement.style.setProperty('--adB', Math.round(e.target.getBoundingClientRect().height) + 'px'); });
+  const watch = () => { const b = document.getElementById('geniee_overlay_boots'); if (b && !b.dataset.watched) { b.dataset.watched = '1'; ro.observe(b); } };
+  new MutationObserver(watch).observe(document.body, { childList: true }); watch();
+}
+showGenieeOverlay();
 $('load').remove(); requestAnimationFrame(loop);
-const go = $('go'); go.disabled = false; go.textContent = 'はじめる';
-{ const rk = LS.get('shiba_rank2', []); if (rk.length) $('best').textContent = `この端末の最高：毛玉 直径 ${rk[0].d}cm（柴犬${rk[0].h}匹分）`; }
+const go = $('go'); go.disabled = false; go.textContent = TX.start;
+{ const rk = LS.get('shiba_rank2', []); if (rk.length) $('best').textContent = TX.best(rk[0].d, rk[0].h); }
 }
