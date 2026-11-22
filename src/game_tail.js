@@ -194,10 +194,10 @@ function fingerMat(col, tipU) {
       float a = (1.0 - smoothstep(uFade.x, uFade.y, distance(vW, uTip))) * uVis;
       if (a < 0.01) discard; gl_FragColor = vec4(c, a); }` });
 }
-const hand0 = { vis: { value: 0 }, fade: { value: new THREE.Vector2(0.022, 0.056) } };
+const hand0 = { vis: { value: 0 }, fade: { value: new THREE.Vector2(0.03, 0.07) } };
 const HS = 1.6;   // 指の大きさ（1 = 本物の指くらい）
 // [半径, 長さ, 指先側から見た曲がり（A 軸からの角度）]。親指は -S 側、人差し指は +S 側
-const FING = { th: [[0.0095, 0.030, 0.30], [0.0105, 0.036, 0.6], [0.012, 0.05, 0.85]], ix: [[0.0085, 0.024, 0.15], [0.009, 0.027, 0.4], [0.0095, 0.055, 0.6]] };
+const FING = { th: [[0.0095, 0.030, 0.22], [0.0105, 0.036, 0.4], [0.012, 0.05, 0.55]], ix: [[0.0085, 0.024, 0.1], [0.009, 0.027, 0.26], [0.0095, 0.055, 0.4]] };
 const hand = { g: new THREE.Group(), segs: {}, nails: {}, tips: {}, open: 1, vis: 0, on: false, G: new THREE.Vector3(), A: new THREE.Vector3(0, 1, 0), S: new THREE.Vector3(1, 0, 0) };
 hand0.fade.value.multiplyScalar(HS);
 for (const k of ['th', 'ix']) {
@@ -207,13 +207,14 @@ for (const k of ['th', 'ix']) {
 }
 hand.g.visible = false; scene.add(hand.g);
 const _Y = new THREE.Vector3(0, 1, 0);
-function handGrip(G, rootW) {   // 引いている間、毎コマ呼ぶ：つまむ所と向きを決める
-  const toCam = camera.position.clone().sub(G).normalize(), out = G.clone().sub(rootW); if (out.lengthSq() < 1e-8) out.copy(toCam); out.normalize();
-  const cu = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);   // 指は画面の上の方から伸びてくる向き（手前に向けすぎると先しか見えない）
-  hand.G.copy(G); hand.A.copy(out).multiplyScalar(0.3).addScaledVector(cu, 0.7).addScaledVector(toCam, 0.65).normalize();
-  const cr = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion).add(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion));
-  hand.S.copy(cr).addScaledVector(hand.A, -cr.dot(hand.A)).normalize();
-  if (!hand.on) { hand.on = true; hand.open = 1; }
+function handGrip(G, sx, sy) {   // 引いている間、毎コマ呼ぶ：つまむ所と、指の向き（画面で引いた方向から指が伸びてくる。2026-11-23 運営者）
+  const toCam = camera.position.clone().sub(G).normalize();
+  const cr = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion), cu = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  const l = Math.hypot(sx, sy), dx = l > 4 ? sx / l : 0, dy = l > 4 ? sy / l : 1;   // 引き始めは下（手前）から
+  const A = cr.multiplyScalar(dx).addScaledVector(cu, -dy).multiplyScalar(0.8).addScaledVector(toCam, 0.6).normalize();   // 画面の下へ引けば手前の下から伸びる
+  hand.G.copy(G);
+  if (!hand.on) { hand.on = true; hand.open = 1; hand.A.copy(A); } else hand.A.lerp(A, 0.2).normalize();
+  hand.S.crossVectors(toCam, hand.A).normalize();   // 2本の指は、引く向きと直角に並べる
 }
 function handLeave() { hand.on = false; }
 function updateHand(dt) {
@@ -227,7 +228,7 @@ function updateHand(dt) {
     const p = hand.G.clone().addScaledVector(S, sg * (r0 * 0.95 + hand.open * 0.018));   // 指先の腹がつまむ所で合う。開くと離れる
     hand.tips[k].value.copy(p);
     FING[k].forEach(([r, L, ang], i) => {
-      const a = ang + hand.open * 0.25, d = A.clone().multiplyScalar(Math.cos(a)).addScaledVector(S, sg * Math.sin(a)).addScaledVector(N, k === 'th' ? 0.15 : -0.1).normalize();
+      const a = ang + hand.open * 0.2, d = A.clone().multiplyScalar(Math.cos(a)).addScaledVector(S, sg * Math.sin(a)).addScaledVector(N, k === 'th' ? 0.15 : -0.1).normalize();
       const m = hand.segs[k][i]; m.position.copy(p).addScaledVector(d, -r * HS); m.quaternion.setFromUnitVectors(_Y, d);
       if (i === 0) { const n = hand.nails[k]; n.quaternion.copy(m.quaternion); n.position.copy(p).addScaledVector(d, L * HS * 0.3).addScaledVector(S, sg * r * HS * 0.75); n.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(_Y, 0)); }
       p.addScaledVector(d, L * HS - 2 * r * HS);
@@ -270,7 +271,7 @@ function pullUpdate(dt) {
   if (!G.noAnger) anger += pain * 0.16 * G.angerK * (G.moveK * (moved / q.req) * q.spF + G.holdK * dt * Math.min(1.2, stretch));
   const rootW = q.P.parent.localToWorld(q.local.clone());
   const pinchW = pointerWorld(q.x, q.y, rootW), pinchL = q.P.parent.worldToLocal(pinchW.clone());
-  updateTuft(q, pinchL, Math.min(1, stretch * 1.15)); if (q.tuft.N) handGrip(q.P.parent.localToWorld(q.tuft.tip.clone()), rootW);
+  updateTuft(q, pinchL, Math.min(1, stretch * 1.15)); if (q.tuft.N) handGrip(q.P.parent.localToWorld(q.tuft.tip.clone()), dx, dy);
   if (dist >= q.req) pop(q, pinchW);
 }
 const flying = [];
