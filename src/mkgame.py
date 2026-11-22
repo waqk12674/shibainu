@@ -74,6 +74,21 @@ for (const m of headP.children) if (m.isMesh && m.material.isShaderMaterial) {
   else m.material.uniforms.uHead = { value: 1 };
 }""")
 
+# ---- しっぽを立てる（怒りのサイン。顔が見えない向きでもわかるように）。aTW＝しっぽらしさ、uTailW＝体の材質だけ1
+TAILV = "attribute float aTW; uniform float uTail, uTailW; float tk(){ return 0.45 * uTail * uTailW * aTW; } vec3 tpos(vec3 p){ return vec3(p.x, 0.2 + (p.y - 0.2) * (1.0 + tk()), p.z); } vec3 ttan(vec3 v){ return vec3(v.x, v.y * (1.0 + tk()), v.z); } vec3 tnrm(vec3 v){ return vec3(v.x, v.y / (1.0 + tk()), v.z); }\n"
+j = sub(j, "uAngry: { value: 0 }, uHead: { value: 0 } };", "uAngry: { value: 0 }, uHead: { value: 0 }, uTail: { value: 0 }, uTailW: { value: 0 } };")
+# 毛（1本ずつ）
+j = sub(j, "void main(){\n  float side = sign(aTS);", TAILV + "void main(){\n  float side = sign(aTS);")
+j = sub(j, "  vec3 T = normalize(mat3(modelMatrix) * aTan.xyz);\n  vec3 N = normalize(mat3(modelMatrix) * aNrm.xyz);", "  vec3 T = normalize(mat3(modelMatrix) * ttan(aTan.xyz));\n  vec3 N = normalize(mat3(modelMatrix) * tnrm(aNrm.xyz));")
+j = sub(j, "vLP = position; vec4 wp = modelMatrix * vec4(position + adisp(position), 1.0);", "vLP = position; vec4 wp = modelMatrix * vec4(tpos(position) + adisp(position), 1.0);")
+# 地の色（体の面）
+j = sub(j, "vertexShader: `uniform float uAngry, uHead; float wrk", "vertexShader: `" + TAILV.strip() + " uniform float uAngry, uHead; float wrk")
+j = sub(j, "vN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(position + adisp(position),1.0); }`,", "vN = normalize(mat3(modelMatrix)*tnrm(normal)); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(tpos(position) + adisp(position),1.0); }`,")
+# 地の毛（層）
+j = sub(j, "vD;\nvoid main(){\n  vec3 p = position", "vD;\n" + TAILV + "void main(){\n  vec3 p = position")
+j = sub(j, "vD = aDens; p += adisp(position);", "vD = aDens; p = tpos(p) + adisp(position);")
+j = sub(j, "vB = position; vN = normalize(mat3(modelMatrix) * normal);", "vB = position; vN = normalize(mat3(modelMatrix) * tnrm(normal));")
+
 # つかむ判定用に両面
 html = open('game_shell.html', encoding='utf-8').read()
 html = html.replace('__JS__', j + '\n' + tail)

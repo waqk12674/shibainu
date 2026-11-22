@@ -36,7 +36,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 .card{background:var(--paper);border-radius:18px;padding:22px 20px 18px;width:min(420px,100%);max-height:100%;overflow:auto;box-sizing:border-box;box-shadow:0 10px 40px rgba(60,40,20,.25);text-align:center}
 #start .card{background:rgba(251,244,232,.94)}
 h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
-.lead{margin:8px 0 14px;color:var(--mute);font-size:13px;line-height:1.6}
+.lead{margin:6px 0 14px;color:var(--mute);font-size:19px;font-weight:700;line-height:1.6}
 .rules{text-align:left;margin:0 auto 16px;padding:0;list-style:none;font-size:13.5px;line-height:1.55;max-width:320px}
 .rules li{padding:5px 0 5px 26px;position:relative;border-top:1px dashed #e2d3bd}.rules li:first-child{border-top:0}
 .rules b{color:var(--shiba)}.rules li::before{content:attr(data-n);position:absolute;left:0;top:6px;width:18px;height:18px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:11px;line-height:18px;text-align:center;font-weight:700}
@@ -73,11 +73,11 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
 <div id="start" class="ov">
   <div class="card">
     <h1 class="mincho">柴犬<small>（換毛期）</small></h1>
+    <p class="lead">60秒で沢山の毛を抜こう！</p>
     <ul class="rules">
-      <li data-n="1">毛を<b>つまんで、引っぱる</b>と抜ける。白く<b>浮いた毛</b>はごっそり抜けて、大きい塊なら<b>時間がのびる</b>。</li>
-      <li data-n="2">しっかり生えた毛や顔まわり・しっぽは<b>痛い</b>。毛の流れに逆らうのも痛い。<b>ゆっくり</b>引けば、気づかれにくい。</li>
-      <li data-n="3">舌がしまわれる、耳が寝る、白目、振り向く、うなる……は<b>怒る前のサイン</b>。手を止めると落ち着く。</li>
-      <li data-n="4">制限時間は<b>60秒</b>。<b>ガウッ！</b>と怒られたら、そこで終わり。</li>
+      <li data-n="1">毛を<b>つまんで、引っぱる</b>と抜ける。<br>白く<b>浮いた毛</b>はごっそり抜けて<b>タイムボーナス</b>。</li>
+      <li data-n="2"><b>ゆっくり</b>引けば、気づかれにくい。<br>しっかり生えた毛や顔まわり・しっぽは<b>痛い</b>。</li>
+      <li data-n="3"><b>ガウッ！</b>と怒られたら、そこで終わり。<br>振り向く、うなる、尻尾を立てる、など要注意</li>
     </ul>
     <button class="big" id="go" disabled>読みこみ中…</button>
     <div class="best" id="best"></div>

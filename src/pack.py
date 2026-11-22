@@ -42,6 +42,10 @@ for part in ('body', 'head', 'ear'):
     add(np.round(np.clip(D[f'{part}_us'] / 3, 0, 1) * 255).astype('u1'), 'us', m)
     add(np.round(np.clip(D[f'{part}_gs'] / 3, 0, 1) * 255).astype('u1'), 'gs', m)
     add(np.round(np.clip(D[f'{part}_ul'], 0, 1) * 255).astype('u1'), 'ul', m)
+    if part == 'body':   # しっぽらしさ（0〜1）。怒るとしっぽを立てるのに使う。つなぎ目はなだらかに
+        for key, pts in (('vt', v), ('ut', u[:, 0]), ('gt', g[:, 0])):
+            Pp = dog.body_parts(pts); others = np.min(np.stack([Pp[k] for k in Pp if k != 'tail']), 0)
+            add(np.round(np.clip((others - Pp['tail']) / 0.02 + 0.5, 0, 1) * 255).astype('u1'), key, m)
     meta['parts'][part] = m
 wh = D['whisk'] - HP
 add(wh.astype('<f4'), 'whisk', meta)

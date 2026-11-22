@@ -15,6 +15,22 @@ for (const P_ of PARTS) {
   const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(q, 3)); pg.setIndex(g.index); pg.computeBoundingSphere();
   P_.pick = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide })); P_.pick.userData.part = P_; P_.parent.add(P_.pick);
 }
+// ---- しっぽを立てる（怒りのサイン）：体の面・層・毛に「しっぽらしさ」aTW を持たせ、体の材質だけ uTailW = 1
+// ponytail: つかむ判定（pick）は動かさない。立てている間はしっぽの見た目とつかむ所が少しずれる（怒りかけで抜く場面は少ないため）
+{
+  const m = META.parts.body, vt = arr(m.vt);
+  body.base.geometry.setAttribute('aTW', new THREE.BufferAttribute(Float32Array.from(vt, x => x / 255), 1));
+  for (const [g, k] of [[body.ug, 'ut'], [body.gg, 'gt']]) {
+    const w = arr(m[k]), N = g.userData.N, a = new Float32Array(N * PTS * 2);
+    for (let s = 0; s < N; s++) a.fill(w[s] / 255, s * PTS * 2, (s + 1) * PTS * 2);
+    g.setAttribute('aTW', new THREE.BufferAttribute(a, 1));
+  }
+  const geos = new Set([body.base.geometry, body.ug, body.gg]);
+  for (const ms of dog.children) if (ms.isMesh && geos.has(ms.geometry) && ms.material.isShaderMaterial) {
+    if (ms.material.uniforms === U) { const o = ms.material; ms.material = new THREE.ShaderMaterial({ uniforms: Object.assign({}, U, { uTailW: { value: 1 } }), vertexShader: o.vertexShader, fragmentShader: o.fragmentShader, transparent: o.transparent, depthWrite: o.depthWrite, side: o.side }); }
+    else ms.material.uniforms.uTailW = { value: 1 };
+  }
+}
 let totalUnits = 0;
 for (const P_ of PARTS) totalUnits += P_.p.ug.userData.N + 0.3 * P_.p.gg.userData.N;
 
@@ -81,14 +97,7 @@ cv.addEventListener('pointerdown', e => {
   const tight = flo ? 0.05 : ui.n > 8 ? 1 - ui.loose / ui.n : 0.85;   // 浮き毛はするっと抜ける
   // 引く房をつくる
   const tuft = makeTuft(P_, uL, gL);
-  // 毛の流れ（画面上の向き）
-  let fx = 0, fy = 0;
-  const gp = P_.p.gg.userData.pos;
-  for (const s of gL.slice(0, 30)) { const b = s * PTS * 3, e2 = b + (PTS - 1) * 3; fx += gp[e2] - gp[b]; fy += gp[e2 + 1] - gp[b + 1]; }
-  const rootW = P_.parent.localToWorld(local.clone());
-  const fW = P_.parent.localToWorld(local.clone().add(new THREE.Vector3(fx, fy, 0).normalize().multiplyScalar(0.05)));
-  const s0 = toScreen(rootW), s1 = toScreen(fW), fl = Math.hypot(s1.x - s0.x, s1.y - s0.y) || 1;
-  pull = { id: e.pointerId, P: P_, local, uL, gL, n, sens, tight, left, tuft, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, sp: 0, fdx: (s1.x - s0.x) / fl, fdy: (s1.y - s0.y) / fl, req: 30 + 105 * Math.pow(tight, 1.3), floater: flo };
+  pull = { id: e.pointerId, P: P_, local, uL, gL, n, sens, tight, left, tuft, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, sp: 0, req: 30 + 105 * Math.pow(tight, 1.3), floater: flo };
   setAlive(P_.p.ug, uL, 0); setAlive(P_.p.gg, gL, 0);
   cv.setPointerCapture(e.pointerId); idleT = 0; audioInit();
 });
@@ -149,10 +158,10 @@ function pullUpdate(dt) {
   const q = pull, mx = q.x - q.lx, my = q.y - q.ly, moved = Math.hypot(mx, my), inst = moved / Math.max(dt, 1e-3);
   q.sp += (inst - q.sp) * Math.min(1, dt * 15); q.lx = q.x; q.ly = q.y;
   const dx = q.x - q.x0, dy = q.y - q.y0, dist = Math.hypot(dx, dy), stretch = dist / q.req;
-  const cos = dist > 4 ? (dx * q.fdx + dy * q.fdy) / dist : 1;
   // ゆっくり引くほど気づかれにくい：怒りは「指を動かした分 × 速さ」でたまる（時間ではない）。止めて引っぱったままだと少しずつ
-  const dirF = 1.15 - 0.55 * cos; q.spF = spFactor(q.sp);
-  const pain = q.sens * (0.1 + 0.9 * q.tight * q.tight) * dirF;
+  // 引く向き（毛の流れ）では痛さを変えない（わかりにくいため。2026-11-22 運営者）
+  q.spF = spFactor(q.sp);
+  const pain = q.sens * (0.1 + 0.9 * q.tight * q.tight);
   if (!G.noAnger) anger += pain * 0.16 * G.angerK * (G.moveK * (moved / q.req) * q.spF + G.holdK * dt * Math.min(1.2, stretch));
   const rootW = q.P.parent.localToWorld(q.local.clone());
   const pinchW = pointerWorld(q.x, q.y, rootW), pinchL = q.P.parent.worldToLocal(pinchW.clone());
@@ -490,6 +499,8 @@ function tells(dt) {
   tongue.scale.set(tg0.s.x * (1 - 0.85 * tin), tg0.s.y, tg0.s.z * (1 - 0.3 * tin)); tongue.position.copy(tg0.p).add(new THREE.Vector3(-0.022 * tin, 0.004 * tin, 0));
   const earB = sm(0.32, 0.58, a);                                   // 2. 耳が寝る
   for (const eg of ears) { const s = eg.scale.z; eg.rotation.set(s * (META.earRot[0] + earB * 0.35), META.earRot[1], META.earRot[2] + earB * 1.0); }
+  const tailT = Math.max(sm(0.35, 0.65, a), angry);                 // しっぽが立つ（後ろからでも見えるサイン）
+  U.uTail.value += (tailT - U.uTail.value) * Math.min(1, dt * 5);
   const whale = sm(0.45, 0.65, a);                                  // 3. 白目
   U.uWhale.value = whale;
   const camL = dog.worldToLocal(camera.position.clone()).sub(new THREE.Vector3().fromArray(META.hpos));
