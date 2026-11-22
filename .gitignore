@@ -1,0 +1,10 @@
+# src で作り直すと出てくるもの（python build.py && python pack.py && python mkgame.py）
+src/dog_v2.npz
+src/dog.bin
+src/dog.json
+src/dog.html
+src/dog.js
+src/game.html
+src/game.js
+src/__pycache__/
+.wrangler/

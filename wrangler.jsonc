@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "shibainu",
+  "compatibility_date": "2026-10-01",
+  // 試験中は routes を書かない（書くと waqk.jp/shibainu/* が作られて公開状態になる）。workers.dev だけで遊ぶ
+  "workers_dev": true,
+  "assets": { "directory": "." }
+}

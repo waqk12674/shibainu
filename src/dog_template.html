@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>柴犬（換毛期）毛の試作 v2</title>
+<style>
+/* VOICE: 明るいリビングで寝そべる柴犬を、じっくり眺める
+   IDEA: 昼の光が入るリビングのラグ
+   PICTURE: 逆光でふちが光る、1本ずつの毛でできた赤柴
+   COLOUR and TYPE: 木の床の茶・和紙の札 #fbf4e8／system sans
+   LAYOUT: 全画面の3D、上に札のボタン、下に操作の案内 */
+html,body{margin:0;height:100%;overflow:hidden;background:#efe8de;font-family:system-ui,'Hiragino Sans','Noto Sans JP',sans-serif;color:#3a2416;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.tb{position:fixed;top:calc(10px + env(safe-area-inset-top));height:36px;padding:0 12px;border-radius:18px;border:0;background:rgba(251,244,232,.9);color:#3a2416;font:700 13px system-ui,sans-serif}
+#adj{right:10px}#refb{left:10px}
+#ref{position:fixed;left:10px;top:calc(54px + env(safe-area-inset-top));width:min(60vw,360px);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.4);display:none}
+#ref.big{width:calc(100vw - 20px)}
+#cap{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));text-align:center;color:#5a4535;font-size:12px;text-shadow:0 0 4px rgba(255,255,255,.9);pointer-events:none}
+#panel{position:fixed;top:calc(54px + env(safe-area-inset-top));right:10px;width:250px;max-height:72%;overflow:auto;background:rgba(251,244,232,.97);border-radius:12px;padding:10px 12px;font-size:12px;display:none}
+#panel label{display:block;margin:7px 0 2px}#panel input{width:100%}
+#load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#5a4535;font-size:15px}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="load">柴犬の毛を並べています…</div>
+<button class="tb" id="refb">Blender の見本</button>
+<button class="tb" id="adj">調整</button>
+<button class="tb" id="faceb" style="left:50%;transform:translateX(-50%)">顔を見る</button>
+<img id="ref" alt="Blender（Cycles）で描いた同じ柴犬の見本" src="data:image/jpeg;base64,__REF__">
+<div id="cap">ドラッグで回す・ピンチで寄る　<span id="fps"></span></div>
+<div id="panel"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+{
+const $ = id => document.getElementById(id);
+document.addEventListener('gesturestart', e => e.preventDefault());
+const META = __META__;
+const bin = Uint8Array.from(atob("__BIN__"), c => c.charCodeAt(0)).buffer;
+const P = { shells: 10, shellA: 0.9, shellL: 0.011, strands: 1, minPx: 0.75, w0: 0.000065, spec: 0.6, back: 0.2, opac: 1.0, dpr: 1.5, sun: 1.0 };
+const T = { int16: Int16Array, int8: Int8Array, uint16: Uint16Array, uint8: Uint8Array, float32: Float32Array };
+const arr = (d) => { const [o, t, sh] = d; return new T[t](bin, o, sh.reduce((a, b) => a * b, 1)); };
+
+const renderer = new THREE.WebGLRenderer({ canvas: $('c'), antialias: true });
+renderer.setClearColor(0xefe8de);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.02, 30);
+const LDIR = new THREE.Vector3(-0.7, 0.62, 0.62).normalize();    // 窓からの昼の光
+const FDIR = new THREE.Vector3(0.75, 0.6, -0.66).normalize();    // 部屋の照明・壁の照り返し
+const U = { uPx: { value: 0.001 }, uMinPx: { value: P.minPx }, uW0: { value: P.w0 }, uL: { value: LDIR }, uF: { value: FDIR }, uSpec: { value: P.spec }, uBack: { value: P.back }, uOpac: { value: P.opac }, uSun: { value: P.sun } };
+const PTS = META.pts;
+
+// ---- 毛のリボン
+function strandGeo(root, d, os, N, type, cream, ao, dk) {
+  const nv = N * PTS * 2, pos = new Float32Array(N * PTS * 3);
+  for (let s = 0; s < N; s++) {
+    const rx = root[s * 3] * META.rs / 32767, ry = root[s * 3 + 1] * META.rs / 32767, rz = root[s * 3 + 2] * META.rs / 32767;
+    pos[s * PTS * 3] = rx; pos[s * PTS * 3 + 1] = ry; pos[s * PTS * 3 + 2] = rz;
+    for (let i = 1; i < PTS; i++) { const j = (s * (PTS - 1) + i - 1) * 3, k = (s * PTS + i) * 3; pos[k] = rx + d[j] * os / 127; pos[k + 1] = ry + d[j + 1] * os / 127; pos[k + 2] = rz + d[j + 2] * os / 127; }
+  }
+  return ribbon(pos, N, type, cream, ao, dk);
+}
+function ribbon(pos, N, type, cream, ao, dk) {
+  const nv = N * PTS * 2;
+  const p = new Float32Array(nv * 3), tan = new Int8Array(nv * 4), nrm = new Int8Array(nv * 4), ts = new Float32Array(nv), rt = new Float32Array(nv), kk = new Uint8Array(nv);
+  const idx = new Uint32Array(N * (PTS - 1) * 6); let ii = 0;
+  for (let s = 0; s < N; s++) {
+    const rnd = Math.random(), cr = cream ? cream[s] / 255 : 0, oc = ao ? ao[s] / 255 : 1, kv = dk ? dk[s] : 0;
+    const b0 = s * PTS * 3; let nx = pos[b0 + 3] - pos[b0], ny = pos[b0 + 4] - pos[b0 + 1], nz = pos[b0 + 5] - pos[b0 + 2]; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    for (let i = 0; i < PTS; i++) {
+      const k = (s * PTS + i) * 3, a = (s * PTS + Math.max(0, i - 1)) * 3, b = (s * PTS + Math.min(PTS - 1, i + 1)) * 3;
+      let tx = pos[b] - pos[a], ty = pos[b + 1] - pos[a + 1], tz = pos[b + 2] - pos[a + 2]; const l = Math.hypot(tx, ty, tz) || 1;
+      const t = i / (PTS - 1);
+      for (let sd = 0; sd < 2; sd++) {
+        const v = (s * PTS + i) * 2 + sd;
+        p[v * 3] = pos[k]; p[v * 3 + 1] = pos[k + 1]; p[v * 3 + 2] = pos[k + 2]; kk[v] = kv;
+        tan[v * 4] = tx / l * 127; tan[v * 4 + 1] = ty / l * 127; tan[v * 4 + 2] = tz / l * 127;
+        nrm[v * 4] = nx * 127; nrm[v * 4 + 1] = ny * 127; nrm[v * 4 + 2] = nz * 127; nrm[v * 4 + 3] = Math.round(oc * 127);
+        ts[v] = (t + 0.002) * (sd ? 1 : -1); rt[v] = type * 2 + rnd * 0.999; tan[v * 4 + 3] = Math.round(cr * 127);
+      }
+      if (i < PTS - 1) { const v0 = (s * PTS + i) * 2; idx[ii++] = v0; idx[ii++] = v0 + 1; idx[ii++] = v0 + 2; idx[ii++] = v0 + 1; idx[ii++] = v0 + 3; idx[ii++] = v0 + 2; }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  g.setAttribute('aTan', new THREE.BufferAttribute(tan, 4, true));
+  g.setAttribute('aNrm', new THREE.BufferAttribute(nrm, 4, true));
+  g.setAttribute('aTS', new THREE.BufferAttribute(ts, 1));
+  g.setAttribute('aRT', new THREE.BufferAttribute(rt, 1));
+  g.setAttribute('aK', new THREE.BufferAttribute(kk, 1, true));
+  g.setIndex(new THREE.BufferAttribute(idx, 1));
+  g.userData.N = N;
+  return g;
+}
+const VS = `
+attribute vec4 aTan; attribute vec4 aNrm; attribute float aTS; attribute float aRT; attribute float aK;
+uniform float uPx, uMinPx, uW0;
+varying vec3 vT, vN, vV; varying float vt, vCov, vRnd, vType, vCream, vY, vAO, vDist, vK;
+void main(){
+  float side = sign(aTS); vt = abs(aTS) - 0.002;
+  vType = floor(aRT / 2.0); vRnd = fract(aRT); vCream = aTan.w;
+  vec3 T = normalize(mat3(modelMatrix) * aTan.xyz);
+  vec3 N = normalize(mat3(modelMatrix) * aNrm.xyz);
+  vec4 wp = modelMatrix * vec4(position, 1.0);
+  vec3 V = normalize(cameraPosition - wp.xyz);
+  vec3 Bv = normalize(cross(T, V) + 1e-5);
+  float dist = length(cameraPosition - wp.xyz);
+  float w0 = vType > 1.5 ? uW0 * 1.7 : (vType > 0.5 ? uW0 * 0.75 : uW0);
+  float wr = mix(w0, w0 * 0.18, vt);
+  float w = max(wr, uPx * dist * 0.5 * uMinPx);
+  vCov = wr / w;
+  wp.xyz += Bv * side * w;
+  vT = T; vV = V; vN = N; vY = wp.y; vAO = aNrm.w > 0.0 ? aNrm.w : 1.0; vDist = dist; vK = aK;
+  gl_Position = projectionMatrix * viewMatrix * wp;
+}`;
+const FS = `
+precision highp float;
+uniform vec3 uL, uF; uniform float uSpec, uBack, uOpac, uSun;
+varying vec3 vT, vN, vV; varying float vt, vCov, vRnd, vType, vCream, vY, vAO, vDist, vK;
+void main(){
+  vec3 T = normalize(vT), V = normalize(vV), N = normalize(vN);
+  vec3 cream = vec3(0.93, 0.83, 0.68), red = vec3(0.93, 0.64, 0.37), tip = vec3(0.76, 0.44, 0.20);
+  vec3 col; float ao;
+  if (vType < 0.5) {
+    vec3 rc = mix(mix(vec3(0.95,0.85,0.70), red, smoothstep(0.05, 0.45, vt)), tip, smoothstep(0.75, 1.0, vt) * 0.5);
+    vec3 cc = mix(vec3(0.97,0.92,0.86), vec3(0.99, 0.96, 0.90), vt);
+    col = mix(rc, cc, vCream);
+    ao = mix(0.72, 1.0, smoothstep(0.0, 0.6, vt));
+  } else if (vType < 1.5) {
+    col = mix(vec3(0.92, 0.76, 0.56), vec3(0.97, 0.93, 0.86), vCream) * (0.84 + 0.16 * vt);
+    ao = mix(0.6, 0.95, vt);
+  } else {
+    col = vec3(0.10, 0.085, 0.075); ao = 1.0;
+  }
+  col *= 1.0 + (vRnd - 0.5) * mix(0.12, 0.05, vCream);
+  col *= mix(1.0, 0.85, smoothstep(0.85, 0.99, N.y) * (1.0 - vCream));
+  col *= mix(0.8, 1.0, smoothstep(-0.6, 0.1, N.y));
+  float TL = dot(T, uL), TF = dot(T, uF);
+  float dif = sqrt(max(0.0, 1.0 - TL*TL)), fil = sqrt(max(0.0, 1.0 - TF*TF));
+  float wrapL = clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0), wrapF = clamp(dot(N, uF) * 0.5 + 0.5, 0.0, 1.0);
+  vec3 T1 = normalize(T + N * 0.12), T2 = normalize(T - N * 0.18);
+  vec3 H = normalize(uL + V), HF = normalize(uF + V);
+  float s1 = pow(sqrt(max(0.0, 1.0 - pow(dot(T1, H), 2.0))), 90.0);
+  float s2 = pow(sqrt(max(0.0, 1.0 - pow(dot(T2, H), 2.0))), 22.0);
+  float s3 = pow(sqrt(max(0.0, 1.0 - pow(dot(T1, HF), 2.0))), 60.0);
+  vec3 sunC = vec3(1.0, 0.95, 0.86) * uSun, fillC = vec3(0.92, 0.91, 0.90), amb = vec3(0.80, 0.77, 0.74);
+  vec3 c = col * ao * (amb + sunC * dif * wrapL * 0.6 + fillC * fil * wrapF * 0.55);
+  c += (sunC * (s1 * 0.35 + s2 * col * 0.5) * wrapL + fillC * s3 * 0.18 * wrapF) * uSpec * ao * (1.0 - 0.8 * vCream) * mix(0.3, 1.0, smoothstep(0.1, 0.5, abs(dot(N, V))));
+  float bt = pow(clamp(dot(-V, uL), 0.0, 1.0), 3.0);
+  float rim = pow(1.0 - clamp(abs(dot(N, V)), 0.0, 1.0), 2.0);
+  c += sunC * mix(col, vec3(1.0, 0.9, 0.75), 0.3) * (bt * 0.15 + rim * 0.0) * uBack * smoothstep(0.4, 1.0, vt) * (vType > 1.5 ? 0.2 : 1.0);
+  c = min(c, col * 1.2 + 0.03);
+  c = mix(c * vec3(1.42, 1.36, 1.3), c * vec3(1.24, 1.19, 1.12), vCream) * (vType > 1.5 ? 0.85 : 1.0);
+  float aoS = mix(mix(vAO, 1.0, 0.25 * vt), mix(1.0, max(vAO, 0.55), 0.6), vCream);
+  c *= mix(mix(0.8, 0.9, vCream), 1.0, smoothstep(0.03, 0.14, vY)) * aoS * mix(vec3(1.0), vec3(1.0, 0.9, 0.78), (1.0 - aoS) * vCream * 2.0);
+  c *= mix(mix(0.8, 0.88, vCream), 1.0, clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0));
+  c *= mix(1.0, 1.18, vCream);
+  c = mix(c, vec3(0.07, 0.055, 0.05), vK * (1.0 - 0.4 * vt));
+  float a = vCov * (1.0 - smoothstep(0.6, 1.0, vt) * 0.75) * uOpac * (1.0 - 0.35 * vCream * step(vType, 0.5)) * (vType > 1.5 ? 1.0 : mix(1.0, 0.5, smoothstep(0.8, 1.8, vDist)));
+  gl_FragColor = vec4(c, a);
+}`;
+const strandMat = () => new THREE.ShaderMaterial({ uniforms: U, vertexShader: VS, fragmentShader: FS, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+const baseMat = new THREE.ShaderMaterial({ uniforms: U, side: THREE.DoubleSide,
+  vertexShader: `attribute float aCream; attribute float aAO; attribute float aK; varying float vC, vA, vK; varying vec3 vN; void main(){ vC = aCream; vA = aAO; vK = aK; vN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4(position,1.0); }`,
+  fragmentShader: `uniform vec3 uL, uF; varying float vC, vA, vK; varying vec3 vN; void main(){ vec3 N = normalize(vN); float l = clamp(dot(N,uL)*0.5+0.5,0.,1.)*0.5 + clamp(dot(N,uF)*0.5+0.5,0.,1.)*0.5; vec3 c = mix(vec3(0.95,0.64,0.36), vec3(1.0,0.95,0.88), vC); gl_FragColor = vec4(mix(c*(0.75+0.25*l)*mix(vA, 1.0, 0.6*vC), vec3(0.06,0.045,0.04)*(0.7+0.6*l), vK), 1.0); }` });
+
+
+// ---- 地の毛：短く細かい毛の層（体の面を少しずつふくらませて重ねる）
+const SH = { uH: { value: 0 } };
+const shellVS = `
+attribute float aCream; attribute float aLen; attribute float aAO; attribute float aK;
+uniform float uH, uShellL;
+varying vec3 vB, vN, vV; varying float vC, vH, vY, vA, vK;
+void main(){
+  vec3 p = position + normal * uH * uShellL * aLen;
+  vec4 w = modelMatrix * vec4(p, 1.0);
+  w.y -= uH * uH * uShellL * aLen * 0.35;
+  vB = position; vN = normalize(mat3(modelMatrix) * normal); vC = aCream; vH = uH; vY = w.y; vV = normalize(cameraPosition - w.xyz); vA = aAO; vK = aK;
+  gl_Position = projectionMatrix * viewMatrix * w;
+}`;
+const shellFS = `
+precision highp float;
+uniform vec3 uL, uF; uniform float uSun, uShellF, uShellA;
+varying vec3 vB, vN, vV; varying float vC, vH, vY, vA, vK;
+float h31(vec3 p){ p=fract(p*0.1031); p+=dot(p,p.yzx+33.33); return fract((p.x+p.y)*p.z); }
+vec3 h33(vec3 p){ p=fract(p*vec3(.1031,.1030,.0973)); p+=dot(p,p.yxz+33.33); return fract((p.xxy+p.yxx)*p.zyx); }
+float fib(vec3 q, float h){ vec3 c=floor(q), f=fract(q); vec3 j=h33(c)*0.6+0.2; float len=0.55+0.45*h31(c+3.1); if(h>len) return 0.0; float r=0.55*(1.0-h/len)+0.08; float d=length(f-j); return 1.0-smoothstep(r*0.55, r, d); }
+void main(){
+  vec3 q = vB * uShellF;
+  float a = max(fib(q, vH), fib(q*1.73+7.3, vH) * 0.85);
+  a *= uShellA * (1.0 - vH * 0.6) * smoothstep(0.05, 0.4, abs(dot(normalize(vN), normalize(vV))));
+  if (a < 0.03) discard;
+  vec3 red = vec3(0.94, 0.68, 0.42), cream = vec3(0.98, 0.94, 0.88);
+  vec3 col = mix(red, cream, vC) * mix(mix(0.66, 0.84, vC), 1.03, vH);
+  vec3 N = normalize(vN);
+  col *= mix(1.0, 0.86, smoothstep(0.85, 0.99, N.y) * (1.0 - vC)) * mix(0.8, 1.0, smoothstep(-0.6, 0.1, N.y));
+  float l = 0.78 + 0.22 * (clamp(dot(N,uL)*0.5+0.5,0.,1.)*0.6 + clamp(dot(N,uF)*0.5+0.5,0.,1.)*0.4);
+  vec3 oc = col * l * (0.9 + 0.1 * uSun);
+  oc = mix(oc * vec3(1.38, 1.32, 1.26), oc * vec3(1.2, 1.15, 1.08), vC) * mix(mix(0.8, 0.9, vC), 1.0, smoothstep(0.03, 0.14, vY)) * mix(mix(vA, 1.0, 0.2 * vH), mix(1.0, vA, 0.4), vC);
+  oc *= mix(mix(0.8, 0.88, vC), 1.0, clamp(dot(N, uL) * 0.5 + 0.5, 0.0, 1.0)) * mix(1.0, 1.18, vC);
+  oc = mix(oc, vec3(0.07, 0.055, 0.05), vK);
+  gl_FragColor = vec4(oc, a);
+}`;
+const shellU = Object.assign({ uShellL: { value: 0.011 }, uShellF: { value: 1100 }, uShellA: { value: 0.9 } }, U);
+const shellMats = [];
+function addShells(g, parent, scale) {
+  const N = P.shells;
+  for (let i = 1; i <= N; i++) {
+    const mat = new THREE.ShaderMaterial({ uniforms: Object.assign({ uH: { value: i / N } }, shellU), vertexShader: shellVS, fragmentShader: shellFS, transparent: true, depthWrite: false, side: THREE.FrontSide });
+    const m = new THREE.Mesh(g, mat); m.scale.setScalar(scale); m.renderOrder = 2 + i * 0.01; m.frustumCulled = false; parent.add(m); shellMats.push(mat);
+  }
+}
+const earMat = baseMat.clone(); earMat.fragmentShader = earMat.fragmentShader.replace('vec3(0.95,0.92,0.85), vC)', 'vec3(0.72,0.54,0.50), vC)');
+const strandGeos = [];
+function buildPart(name, parent, mat) {
+  const m = META.parts[name];
+  const v = arr(m.v), n = arr(m.n), f = arr(m.f);
+  const pos = new Float32Array(v.length), nr = new Float32Array(n.length);
+  for (let i = 0; i < v.length; i++) { pos[i] = v[i] * META.rs / 32767; nr[i] = n[i] / 127; }
+  const vc = arr(m.vc), vcf = new Float32Array(vc.length); for (let i = 0; i < vc.length; i++) vcf[i] = vc[i] / 255;
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nr, 3)); g.setAttribute('aCream', new THREE.BufferAttribute(vcf, 1)); g.setIndex(new THREE.BufferAttribute(new Uint16Array(f), 1));
+  const vl = arr(m.vl), vlf = new Float32Array(vl.length); for (let i = 0; i < vl.length; i++) vlf[i] = vl[i] / 255 * 2;
+  g.setAttribute('aLen', new THREE.BufferAttribute(vlf, 1));
+  const va = arr(m.vao), vaf = new Float32Array(va.length); for (let i = 0; i < va.length; i++) vaf[i] = va[i] / 255;
+  g.setAttribute('aAO', new THREE.BufferAttribute(vaf, 1));
+  g.setAttribute('aK', new THREE.BufferAttribute(m.vk ? arr(m.vk) : new Uint8Array(vaf.length), 1, true));
+  const base = new THREE.Mesh(g, mat || baseMat); base.scale.setScalar(0.985); parent.add(base);
+  addShells(g, parent, 0.985);
+  const ug = strandGeo(arr(m.ur), arr(m.ud), m.uos, m.ur[2][0], 1, arr(m.uc), arr(m.uao), arr(m.uk));
+  const gg = strandGeo(arr(m.gr), arr(m.gd), m.gos, m.gr[2][0], 0, arr(m.gc), arr(m.gao), arr(m.gk));
+  const um = new THREE.Mesh(ug, strandMat()), gm = new THREE.Mesh(gg, strandMat());
+  um.renderOrder = 10; gm.renderOrder = 11; um.frustumCulled = gm.frustumCulled = false;
+  parent.add(um, gm); strandGeos.push(ug, gg);
+  return { base, ug, gg };
+}
+const dog = new THREE.Group(); scene.add(dog);
+const body = buildPart('body', dog);
+const headP = new THREE.Group(); headP.position.fromArray(META.hpos); dog.add(headP);
+const head = buildPart('head', headP);
+const ears = [];
+for (const s of [1, -1]) {
+  const eg = new THREE.Group(); const eb = META.ear;
+  eg.position.set(eb[0] - META.hp[0], eb[1] - META.hp[1], eb[2] * s);
+  eg.scale.z = s; eg.rotation.set(s * META.earRot[0], META.earRot[1], META.earRot[2]);
+  headP.add(eg); buildPart('ear', eg, earMat); ears.push(eg);
+}
+// ひげ
+{
+  const w = arr(META.whisk), N = META.whisk[2][0];
+  const wg = ribbon(new Float32Array(w), N, 2, null); const wm = new THREE.Mesh(wg, strandMat()); wm.renderOrder = 12; wm.frustumCulled = false; headP.add(wm);
+}
+// 目：大きめの黒目に、光の映り込み
+const eyeMat = new THREE.ShaderMaterial({ uniforms: U,
+  vertexShader: `varying vec3 vN, vW, vL; void main(){ vN = normalize(mat3(modelMatrix)*normal); vL = normal; vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader: `uniform vec3 uL, uF; varying vec3 vN, vW, vL; void main(){
+    vec3 N = normalize(vN), V = normalize(cameraPosition - vW), R = reflect(-V, N);
+    float fwd = clamp(vL.x, 0.0, 1.0);
+    vec3 c = mix(vec3(0.03,0.02,0.015), vec3(0.23,0.13,0.075), smoothstep(0.45, 0.7, fwd) * (1.0 - smoothstep(0.88, 0.95, fwd)));
+    c += vec3(1.0,0.97,0.92) * smoothstep(0.996, 0.999, dot(R, normalize(vec3(0.55,0.75,0.35)))) * 1.2;
+    c += vec3(1.0,0.97,0.92) * pow(max(dot(R, normalize(vec3(0.55,0.75,0.35))), 0.0), 80.0) * 0.18;
+    c += vec3(1.0,0.96,0.9) * smoothstep(0.998, 0.9995, dot(R, normalize(uF))) * 0.6;
+    c += vec3(0.9,0.85,0.8) * pow(max(dot(R, normalize(vec3(-0.2,0.9,-0.4))), 0.0), 30.0) * 0.12;
+    float fr = pow(1.0 - max(dot(N, V), 0.0), 4.0); c += vec3(0.25,0.2,0.18) * fr;
+    gl_FragColor = vec4(c, 1.0); }` });
+const lidMat = new THREE.MeshBasicMaterial({ color: 0x0b0806 });
+for (let ei = 0; ei < 2; ei++) {
+  const dir = new THREE.Vector3().fromArray(META.eyeDir[ei]);
+  const c = new THREE.Vector3().fromArray(META.eyes[ei]);
+  const eg = new THREE.Group(); eg.position.copy(c); eg.quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), dir); eg.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -(ei === 0 ? 1 : -1) * 0.26)); headP.add(eg);
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(META.eyeR, 32, 24), eyeMat); ball.scale.set(1, 0.62, 1); eg.add(ball);
+  const lid = new THREE.Mesh(new THREE.TorusGeometry(META.eyeR * 0.98, 0.0019, 10, 40), lidMat); lid.rotation.y = Math.PI / 2; lid.scale.set(1, 0.62, 1); lid.position.x = META.eyeR * 0.36; eg.add(lid);
+}
+// 鼻
+{
+  const nm = new THREE.MeshPhongMaterial({ color: 0x17120f, shininess: 28, specular: 0x2a2a2a });
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), nm); nose.scale.set(0.0108, 0.0104, 0.0155);
+  nose.position.fromArray(META.nose); headP.add(nose);
+  const nostM = new THREE.MeshBasicMaterial({ color: 0x030202 });
+  for (const s of [1, -1]) { const ns = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10), nostM); ns.scale.set(0.0022, 0.0028, 0.0042); ns.position.fromArray(META.nose).add(new THREE.Vector3(0.0098, -0.0018, 0.0058 * s)); ns.rotation.x = s * 0.6; headP.add(ns); }
+  const lm = new THREE.MeshPhongMaterial({ color: 0x120d0b, shininess: 30 });
+  const tube = (pts, r) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(q => new THREE.Vector3().fromArray(q))), 48, r, 6, false), lm);
+  const tubeC = (pts, r) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(q => new THREE.Vector3().fromArray(q)), true), 96, r, 8, true), lm);
+  const rim = META.mouthRim, cy = META.mouthC[1];
+  const upL = rim.filter(q => q[1] >= cy - 0.004).sort((a, b) => a[2] - b[2]), loL = rim.filter(q => q[1] < cy - 0.004).sort((a, b) => a[2] - b[2]);
+  // 唇と鼻の下の溝は、顔の毛と地の色を黒くして描く（線は使わない）
+  const toothM = new THREE.MeshPhongMaterial({ color: 0xf2ece0, shininess: 40 });
+  for (const s of [1, -1]) { const lo = loL.reduce((b, q) => Math.abs(q[2] - s * 0.022) < Math.abs(b[2] - s * 0.022) ? q : b, loL[0]); const tt = new THREE.Mesh(new THREE.ConeGeometry(0.0022, 0.0065, 8), toothM); tt.position.fromArray(lo).add(new THREE.Vector3(-0.002, 0.003, -s * 0.001)); headP.add(tt); }
+  // 口の中と舌
+  const mc = new THREE.Vector3().fromArray(META.mouthC), mr = META.mouthR;
+  const inner = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshPhongMaterial({ color: 0x2a0e0e, shininess: 4 }));
+  inner.scale.set(mr[0] * 0.55, mr[1] * 0.9, mr[2] * 0.85); inner.position.copy(mc).add(new THREE.Vector3(-0.024, 0, 0)); headP.add(inner);
+  const tongue = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshPhongMaterial({ color: 0xe58a9a, shininess: 6, specular: 0x1a1111 }));
+  tongue.scale.set(0.033, 0.006, 0.029); tongue.position.copy(mc).add(new THREE.Vector3(0.002, -mr[1] * 0.55, 0)); tongue.rotation.z = -0.6; headP.add(tongue);
+}
+scene.add(new THREE.AmbientLight(0xffeedd, 0.6)); const dl = new THREE.DirectionalLight(0xffffff, 0.7); dl.position.copy(FDIR); scene.add(dl);
+// 明るいリビング：白い壁・明るいフローリング・ラグ・窓
+function canvasTex(w, h, draw) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h); const t = new THREE.CanvasTexture(c); t.anisotropy = 4; return t; }
+const h3 = (i, j, k) => { let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(k, 1274126177)) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16; return (h >>> 0) / 4294967296; };
+const floorTex = canvasTex(1024, 1024, (g, w, h) => {
+  g.fillStyle = '#d9bf98'; g.fillRect(0, 0, w, h); const bw = h / 10;
+  for (let r = 0; r < 10; r++) { const off = h3(r, 1, 2) * w;
+    for (let seg = -1; seg < 2; seg++) { const x0 = off + seg * w * 0.7, tone = 0.93 + 0.12 * h3(r, seg + 5, 9);
+      g.fillStyle = `rgb(${Math.min(255, 222 * tone) | 0},${Math.min(255, 194 * tone) | 0},${Math.min(255, 152 * tone) | 0})`; g.fillRect(x0, r * bw, w * 0.7, bw);
+      g.strokeStyle = 'rgba(150,105,60,.13)'; for (let l = 0; l < 9; l++) { g.beginPath(); const yy = r * bw + 5 + l * (bw - 10) / 8; g.moveTo(x0, yy); for (let x = 0; x < w * 0.7; x += 16) g.lineTo(x0 + x, yy + Math.sin(x * 0.015 + l * 1.7 + r) * 2.5); g.stroke(); }
+      g.fillStyle = 'rgba(120,80,45,.35)'; g.fillRect(x0, r * bw, 1.5, bw); }
+    g.fillStyle = 'rgba(120,80,45,.4)'; g.fillRect(0, r * bw, w, 1.5); }
+});
+floorTex.wrapS = floorTex.wrapT = THREE.RepeatWrapping; floorTex.repeat.set(4, 4); floorTex.rotation = 0.35;
+const floor = new THREE.Mesh(new THREE.CircleGeometry(5, 64), new THREE.MeshBasicMaterial({ map: floorTex })); floor.rotation.x = -Math.PI / 2; scene.add(floor);
+// ラグ（毛足の短い生成り色の丸ラグ）
+const rugTex = canvasTex(512, 512, (g, w, h) => {
+  const cx = w / 2; g.fillStyle = '#efe7da'; g.beginPath(); g.arc(cx, cx, cx - 4, 0, Math.PI * 2); g.fill();
+  for (let i = 0; i < 9000; i++) { const a = Math.random() * 6.283, r = Math.sqrt(Math.random()) * (cx - 8); const x = cx + Math.cos(a) * r, y = cx + Math.sin(a) * r; g.fillStyle = Math.random() < 0.5 ? 'rgba(255,255,255,.35)' : 'rgba(170,150,125,.18)'; g.fillRect(x, y, 2, 2); }
+  g.strokeStyle = 'rgba(190,170,145,.6)'; g.lineWidth = 6; g.beginPath(); g.arc(cx, cx, cx - 30, 0, Math.PI * 2); g.stroke();
+  g.strokeStyle = 'rgba(190,170,145,.35)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cx, cx - 46, 0, Math.PI * 2); g.stroke();
+});
+const rug = new THREE.Mesh(new THREE.CircleGeometry(0.75, 64), new THREE.MeshBasicMaterial({ map: rugTex, transparent: true }));
+rug.rotation.x = -Math.PI / 2; rug.position.set(0.05, 0.003, 0); scene.add(rug);
+// 壁（窓・カーテン・ソファ・観葉植物）
+const WIN = 0.865; // 光の来る向き（LDIR の向き）
+const wallTex = canvasTex(2048, 512, (g, w, h) => {
+  g.fillStyle = '#f4efe7'; g.fillRect(0, 0, w, h);
+  g.fillStyle = '#e6ddd0'; g.fillRect(0, h * 0.9, w, h * 0.1);            // 幅木
+  const drawWin = (ox) => { g.save(); g.translate(ox, 0);
+    const x0 = (WIN - 0.11) * w, x1 = (WIN + 0.11) * w, y0 = h * 0.12, y1 = h * 0.86;
+    const sky = g.createLinearGradient(0, y0, 0, y1); sky.addColorStop(0, '#dff0fb'); sky.addColorStop(0.7, '#f7fbff'); sky.addColorStop(1, '#e9f2e4');
+    g.fillStyle = sky; g.fillRect(x0, y0, x1 - x0, y1 - y0);
+    g.fillStyle = 'rgba(160,190,140,.55)'; for (let i = 0; i < 14; i++) { g.beginPath(); g.ellipse(x0 + (x1 - x0) * h3(i, 2, 2), y1 - 10, 40 + 50 * h3(i, 3, 3), 30 + 30 * h3(i, 4, 4), 0, 0, 6.283); g.fill(); }
+    g.fillStyle = '#ffffff'; g.fillRect((x0 + x1) / 2 - 5, y0, 10, y1 - y0); g.fillRect(x0, (y0 + y1) / 2 - 4, x1 - x0, 8);
+    g.strokeStyle = '#ffffff'; g.lineWidth = 14; g.strokeRect(x0, y0, x1 - x0, y1 - y0);
+    g.fillStyle = 'rgba(236,228,214,.95)'; g.fillRect(x0 - 120, h * 0.06, 110, h * 0.84); g.fillRect(x1 + 10, h * 0.06, 110, h * 0.84);  // カーテン
+    g.strokeStyle = 'rgba(200,188,170,.5)'; g.lineWidth = 3; for (let i = 0; i < 6; i++) { g.beginPath(); g.moveTo(x0 - 110 + i * 18, h * 0.06); g.lineTo(x0 - 110 + i * 18, h * 0.9); g.stroke(); g.beginPath(); g.moveTo(x1 + 20 + i * 18, h * 0.06); g.lineTo(x1 + 20 + i * 18, h * 0.9); g.stroke(); }
+    g.restore(); };
+  drawWin(0); drawWin(-w); drawWin(w);
+  // ソファ（窓の反対側）
+  const sx = ((WIN + 0.5) % 1) * w;
+  g.fillStyle = '#b9c4c9'; g.beginPath(); g.roundRect ? g.roundRect(sx - 260, h * 0.5, 520, h * 0.32, 30) : g.rect(sx - 260, h * 0.5, 520, h * 0.32); g.fill();
+  g.fillStyle = '#a9b5bb'; g.fillRect(sx - 280, h * 0.6, 60, h * 0.25); g.fillRect(sx + 220, h * 0.6, 60, h * 0.25);
+  g.fillStyle = '#c9d2d6'; g.fillRect(sx - 230, h * 0.62, 220, h * 0.08); g.fillRect(sx + 10, h * 0.62, 220, h * 0.08);
+  g.fillStyle = '#8a6a4a'; g.fillRect(sx - 240, h * 0.82, 14, h * 0.06); g.fillRect(sx + 226, h * 0.82, 14, h * 0.06);
+  // 観葉植物
+  const px = ((WIN + 0.25) % 1) * w; g.fillStyle = '#d8cfc2'; g.fillRect(px - 40, h * 0.68, 80, h * 0.2);
+  g.fillStyle = '#6f9a5e'; for (let i = 0; i < 16; i++) { g.beginPath(); const a = -1.6 + (i - 8) * 0.17; g.ellipse(px + Math.cos(a) * 70, h * 0.62 + Math.sin(a) * 90, 18, 42, a + 1.57, 0, 6.283); g.fill(); }
+});
+const wall = new THREE.Mesh(new THREE.CylinderGeometry(4.2, 4.2, 3.0, 64, 1, true), new THREE.MeshBasicMaterial({ map: wallTex, side: THREE.BackSide }));
+wall.position.y = 1.4; scene.add(wall);
+// 影（やわらかく薄め）と、窓からの光だまり
+const shTex = canvasTex(128, 128, g => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(60,40,20,.45)'); r.addColorStop(0.6, 'rgba(60,40,20,.18)'); r.addColorStop(1, 'rgba(60,40,20,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
+const sh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTex, transparent: true, depthWrite: false })); sh.rotation.x = -Math.PI / 2; sh.scale.set(0.95, 0.55, 1); sh.position.set(0.02, 0.004, 0); scene.add(sh);
+const shTexD = canvasTex(128, 128, g => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(45,28,14,.9)'); r.addColorStop(0.5, 'rgba(45,28,14,.5)'); r.addColorStop(1, 'rgba(50,30,15,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); });
+const sh2 = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTexD, transparent: true, depthWrite: false })); sh2.rotation.x = -Math.PI / 2; sh2.scale.set(0.42, 0.3, 1); sh2.position.set(0.14, 0.005, 0); scene.add(sh2);
+for (const [x, z, sx, sz] of [[0.30, 0.074, 0.36, 0.075], [0.30, -0.074, 0.36, 0.075], [-0.06, 0.125, 0.2, 0.075], [-0.06, -0.125, 0.2, 0.075], [-0.12, 0, 0.42, 0.3]]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shTexD, transparent: true, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.scale.set(sx, sz, 1); m.position.set(x, 0.006, z); scene.add(m); }
+const sun = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: canvasTex(128, 128, g => { const r = g.createRadialGradient(64, 64, 0, 64, 64, 64); r.addColorStop(0, 'rgba(255,248,230,.35)'); r.addColorStop(1, 'rgba(255,248,230,0)'); g.fillStyle = r; g.fillRect(0, 0, 128, 128); }), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+sun.rotation.x = -Math.PI / 2; sun.scale.set(2.6, 1.8, 1); sun.position.set(-1.6, 0.002, 1.4); sun.visible = false; scene.add(sun);
+
+// ---- カメラ
+let az = -0.72, el = 0.42, dist = 1.55; const TGT = new THREE.Vector3(0.13, 0.13, 0), TGTv = TGT.clone(); let face = false; const ptrs = new Map(); let pinch0 = 0, dist0 = 0;
+const cv = $('c');
+cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); dist0 = dist; } });
+cv.addEventListener('pointermove', e => { const q = ptrs.get(e.pointerId); if (!q) return;
+  if (ptrs.size === 1) { az += (e.clientX - q.x) * 0.006; el = Math.max(0.05, Math.min(1.3, el + (e.clientY - q.y) * 0.005)); }
+  q.x = e.clientX; q.y = e.clientY;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; dist = Math.max(0.3, Math.min(2.5, dist0 * pinch0 / Math.max(10, Math.hypot(a.x - b.x, a.y - b.y)))); } });
+const up = e => ptrs.delete(e.pointerId); cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+cv.addEventListener('wheel', e => { dist = Math.max(0.3, Math.min(2.5, dist * (1 + e.deltaY * 0.001))); e.preventDefault(); }, { passive: false });
+function resize() { const dpr = Math.min(devicePixelRatio || 1, P.dpr); renderer.setPixelRatio(dpr); renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); U.uPx.value = 2 * Math.tan(camera.fov * Math.PI / 360) / (innerHeight * dpr); }
+addEventListener('resize', resize); resize();
+let fr = 0, ft = performance.now(), tNow = 0;
+function loop(now) {
+  tNow = now / 1000;
+  const d = dist * Math.max(1, 0.75 / camera.aspect);
+  TGTv.lerp(face ? (location.hash === '#mouth' ? new THREE.Vector3(0.47, 0.31, 0) : new THREE.Vector3(0.40, 0.33, 0)) : TGT, 0.12); const tgt = TGTv;
+  camera.position.set(tgt.x + Math.cos(el) * Math.cos(az) * d, tgt.y + Math.sin(el) * d, tgt.z + Math.cos(el) * Math.sin(az) * d); camera.lookAt(tgt);
+  headP.rotation.y = Math.sin(tNow * 0.23) * 0.12; headP.rotation.z = Math.sin(tNow * 0.31) * 0.03 - 0.03;
+  dog.scale.y = 1 + 0.01 * Math.sin(tNow * 2.3);
+  for (const g of strandGeos) g.setDrawRange(0, Math.floor(g.userData.N * P.strands) * (PTS - 1) * 6);
+  renderer.render(scene, camera);
+  fr++; if (now - ft > 1000) { $('fps').textContent = `${Math.round(fr * 1000 / (now - ft))} fps`; fr = 0; ft = now; }
+  requestAnimationFrame(loop);
+}
+$('load').remove(); requestAnimationFrame(loop);
+$('faceb').onclick = () => { face = !face; $('faceb').textContent = face ? '全身を見る' : '顔を見る'; if (face) { az = 0.3; el = 0.12; dist = 0.6; } else { az = -0.72; el = 0.42; dist = 1.55; } };
+if (location.hash === '#face') $('faceb').onclick();
+if (location.hash === '#side') { az = -1.35; el = 0.16; dist = 2.1; TGT.set(0.06, 0.15, 0); }
+if (location.hash === '#front') { face = true; TGTv.set(0.30, 0.22, 0); az = -0.35; el = 0.2; dist = 1.0; }
+if (location.hash === '#hside') { face = true; az = -1.5; el = 0.05; dist = 0.55; }
+if (location.hash === '#mouth') { face = true; az = 0.15; el = 0.08; dist = 0.32; }
+if (location.hash === '#static') { window.__static = true; }
+$('refb').onclick = () => { const r = $('ref'); r.style.display = r.style.display === 'block' ? 'none' : 'block'; };
+$('ref').onclick = () => $('ref').classList.toggle('big');
+const SPEC = [['strands', '毛の本数（割合）', 0.1, 1, 0.05], ['shellA', '地の毛の濃さ', 0, 1.5, 0.05], ['shellL', '地の毛の長さ（m）', 0.003, 0.025, 0.001], ['minPx', '細い毛の最小の太さ（画素）', 0.3, 2, 0.05], ['w0', '根元の太さ（m）', 0.00002, 0.00015, 0.000005], ['spec', 'ツヤ', 0, 2, 0.05], ['back', '逆光の透け', 0, 2, 0.05], ['sun', '窓の光の強さ', 0, 2, 0.05], ['opac', '毛の濃さ', 0.2, 1.5, 0.05], ['dpr', '解像度の上限', 0.75, 3, 0.25]];
+$('panel').innerHTML = SPEC.map(([k, l, a, b, s]) => `<label>${l}：<b id="v_${k}">${P[k]}</b></label><input type="range" id="i_${k}" min="${a}" max="${b}" step="${s}" value="${P[k]}">`).join('') + `<div style="margin-top:8px;color:#8a6a50">毛の本数：${strandGeos.reduce((a, g) => a + g.userData.N, 0)}本</div>`;
+
+const MAP = { shellA: 'uShellA', shellL: 'uShellL', minPx: 'uMinPx', w0: 'uW0', spec: 'uSpec', back: 'uBack', opac: 'uOpac', sun: 'uSun' };
+for (const [k] of SPEC) $('i_' + k).oninput = e => { P[k] = +e.target.value; $('v_' + k).textContent = P[k]; if (MAP[k]) (shellU[MAP[k]] || U[MAP[k]]).value = P[k]; if (k === 'dpr') resize(); };
+$('adj').onclick = () => { const p = $('panel'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; };
+}
+</script>
+</body>
+</html>

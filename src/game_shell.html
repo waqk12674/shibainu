@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>柴犬（換毛期）</title>
+<style>
+/* VOICE: 換毛期の柴犬の毛を、そっと、欲張って抜く
+   IDEA: 昼のリビングで、横に毛玉がふくらんでいく
+   PICTURE: 1本ずつの毛でできた赤柴と、隣の毛玉
+   COLOUR and TYPE: 和紙の札 #fbf4e8・焦げ茶 #3a2416・柴の赤 #c4501d／明朝の見出し＋system sans
+   LAYOUT: 全画面の3D、上に毛玉の大きさ、左下にスティック、右下に寄る・引く */
+:root{--paper:#fbf4e8;--ink:#3a2416;--shiba:#c4501d;--mute:#8a6a50}
+html,body{margin:0;height:100%;overflow:hidden;background:#efe8de;font-family:system-ui,'Hiragino Sans','Noto Sans JP',sans-serif;color:var(--ink);touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.hide{display:none!important}
+.mincho{font-family:'Hiragino Mincho ProN','Yu Mincho','Noto Serif JP',serif}
+button{font:inherit;color:inherit;cursor:pointer}
+.tb{position:fixed;top:calc(10px + env(safe-area-inset-top));height:36px;padding:0 12px;border-radius:18px;border:0;background:rgba(251,244,232,.9);font-weight:700;font-size:13px;box-shadow:0 1px 4px rgba(60,40,20,.15)}
+#adj{right:10px}#snd{right:68px}
+#hud{position:fixed;left:10px;top:calc(10px + env(safe-area-inset-top));background:rgba(251,244,232,.9);border-radius:12px;padding:6px 12px;box-shadow:0 1px 4px rgba(60,40,20,.15);pointer-events:none}
+#dia{font-weight:800;font-size:17px;color:var(--shiba)}#hiki{font-size:12px;color:var(--mute);margin-top:1px}
+#meter{position:fixed;left:50%;top:calc(58px + env(safe-area-inset-top));transform:translateX(-50%);width:180px;height:8px;border-radius:4px;background:rgba(251,244,232,.85);overflow:hidden;pointer-events:none}
+#meter>div{height:100%;width:0;background:linear-gradient(90deg,#e8b070,#c4501d)}#mFloor{position:absolute;top:0;bottom:0;width:2px;background:#3a2416}
+#stick{position:fixed;left:calc(18px + env(safe-area-inset-left));bottom:calc(60px + env(safe-area-inset-bottom));width:104px;height:104px;border-radius:50%;background:rgba(251,244,232,.55);border:2px solid rgba(251,244,232,.9);box-shadow:0 2px 8px rgba(60,40,20,.15);touch-action:none}
+#knob{position:absolute;left:32px;top:32px;width:40px;height:40px;border-radius:50%;background:rgba(251,244,232,.97);box-shadow:0 2px 6px rgba(60,40,20,.25);pointer-events:none}
+#stick::after{content:'まわる';position:absolute;left:0;right:0;bottom:-20px;text-align:center;font-size:11px;color:#5a4535;text-shadow:0 0 4px #fff}
+#zoom{position:fixed;right:calc(16px + env(safe-area-inset-right));bottom:calc(66px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
+#zoom button{width:48px;height:48px;border-radius:50%;border:0;background:rgba(251,244,232,.9);font-weight:800;font-size:13px;box-shadow:0 2px 6px rgba(60,40,20,.2)}
+#msg{position:fixed;left:50%;bottom:calc(178px + env(safe-area-inset-bottom));transform:translateX(-50%);background:rgba(58,36,22,.82);color:var(--paper);padding:8px 14px;border-radius:16px;font-size:13px;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none}
+#gau{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:min(22vw,120px);font-weight:900;color:var(--paper);-webkit-text-stroke:3px var(--ink);text-shadow:0 6px 0 var(--ink);opacity:0;pointer-events:none;white-space:nowrap}
+#red{position:fixed;inset:0;background:radial-gradient(ellipse at center,rgba(196,40,20,0) 40%,rgba(196,40,20,.45));opacity:0;transition:opacity .15s;pointer-events:none}
+.ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;background:rgba(239,232,222,.35)}
+.card{background:var(--paper);border-radius:18px;padding:22px 20px 18px;width:min(420px,100%);max-height:100%;overflow:auto;box-sizing:border-box;box-shadow:0 10px 40px rgba(60,40,20,.25);text-align:center}
+#start .card{background:rgba(251,244,232,.94)}
+h1{margin:0;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
+.lead{margin:8px 0 14px;color:var(--mute);font-size:13px;line-height:1.6}
+.rules{text-align:left;margin:0 auto 16px;padding:0;list-style:none;font-size:13.5px;line-height:1.55;max-width:320px}
+.rules li{padding:5px 0 5px 26px;position:relative;border-top:1px dashed #e2d3bd}.rules li:first-child{border-top:0}
+.rules b{color:var(--shiba)}.rules li::before{content:attr(data-n);position:absolute;left:0;top:6px;width:18px;height:18px;border-radius:50%;background:var(--ink);color:var(--paper);font-size:11px;line-height:18px;text-align:center;font-weight:700}
+.big{display:block;width:100%;height:52px;border:0;border-radius:26px;background:var(--shiba);color:#fff;font-weight:800;font-size:17px;box-shadow:0 3px 0 #8f3510}
+.big:disabled{background:#c9b8a4;box-shadow:none}
+.sub{display:inline-block;color:var(--ink);margin-top:10px;height:40px;padding:0 18px;border-radius:20px;border:2px solid var(--ink);background:transparent;font-weight:700;font-size:14px;text-decoration:none;line-height:36px;box-sizing:border-box}
+.best{margin-top:10px;font-size:12px;color:var(--mute)}
+#shot{width:100%;border-radius:10px;display:block;margin:0 0 12px;background:#e9dfd0;aspect-ratio:1200/630}
+#rDia{font-size:40px;font-weight:900;color:var(--shiba);line-height:1.1}#rHiki{font-size:16px;font-weight:700;margin-top:2px}
+#rTtl{display:inline-block;margin:10px 0 14px;background:var(--ink);color:var(--paper);padding:5px 14px;border-radius:14px;font-weight:700;font-size:14px}
+.row{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#rank{margin-top:12px;text-align:left}#rank ol{margin:6px 0 0;padding-left:22px;font-size:13px}#rank li{padding:3px 0;border-bottom:1px dashed #e2d3bd}#rank li span{display:inline-block;min-width:110px}
+.note{font-size:11px;color:var(--mute);margin-top:6px}
+#panel{position:fixed;top:calc(54px + env(safe-area-inset-top));right:10px;width:250px;max-height:72%;overflow:auto;background:rgba(251,244,232,.97);border-radius:12px;padding:10px 12px;font-size:12px;box-sizing:border-box}
+#panel label{display:block;margin:7px 0 2px}#panel input[type=range]{width:100%}#panel .ck{display:flex;gap:6px;align-items:center}
+#load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#5a4535;font-size:15px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="red"></div>
+<div id="load">柴犬の毛を並べています…</div>
+<div id="hud" class="hide"><div id="dia">毛玉 直径 0.0cm</div><div id="hiki">柴犬 0.000匹分</div></div>
+<div id="meter" class="hide"><div></div><i id="mFloor"></i></div>
+<button class="tb hide" id="snd">音 あり</button>
+<button class="tb" id="adj">調整</button>
+<div id="stick" class="hide"><div id="knob"></div></div>
+<div id="zoom" class="hide"><button id="zin">寄る</button><button id="zout">引く</button></div>
+<div id="msg"></div>
+<div id="gau" class="mincho">ガウッ！</div>
+
+<div id="start" class="ov">
+  <div class="card">
+    <h1 class="mincho">柴犬<small>（換毛期）</small></h1>
+    <p class="lead">換毛期の柴犬から、毛を抜けるだけ抜こう。<br>抜いた毛は、横で毛玉になっていく。</p>
+    <ul class="rules">
+      <li data-n="1">毛を<b>つまんで、引っぱる</b>と抜ける。白っぽく浮いた毛ほど、するっと抜ける。</li>
+      <li data-n="2">しっかり生えた毛や顔まわり・しっぽは<b>痛い</b>。毛の流れに逆らうのも、急ぐのも痛い。</li>
+      <li data-n="3">舌がしまわれる、耳が寝る、白目、振り向く、うなる……は<b>怒る前のサイン</b>。手を止めると落ち着く。</li>
+      <li data-n="4"><b>ガウッ！</b>と怒られたら、そこで終わり。</li>
+    </ul>
+    <button class="big" id="go" disabled>読みこみ中…</button>
+    <div class="best" id="best"></div>
+  </div>
+</div>
+
+<div id="res" class="ov hide">
+  <div class="card">
+    <img id="shot" alt="今回の毛玉と柴犬">
+    <div id="rDia">直径 0.0cm</div>
+    <div id="rHiki">柴犬 0.00匹分の毛玉</div>
+    <div id="rTtl">毛づくろい見習い</div>
+    <button class="big" id="again">もう一度</button>
+    <div class="row">
+      <a class="sub" id="shareX" target="_blank" rel="noopener">X に投稿</a>
+      <button class="sub" id="rankBtn">この端末の記録</button>
+    </div>
+    <div id="rank" class="hide"><b>この端末の記録（毛玉の直径）</b><ol id="rankList"></ol><div class="note">記録はこの端末のブラウザにだけ残ります。</div></div>
+  </div>
+</div>
+<div id="panel" class="hide"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+{
+__JS__
+</script>
+</body>
+</html>
