@@ -1,7 +1,7 @@
 # 柴犬（換毛期）（shibainu）
 
 換毛期の柴犬から指1本で毛を抜き、60秒で大きな毛玉を作る 3D ゲーム。怒らせたら終わり。
-公開URL: https://waqk.jp/shibainu/（英語版 /shibainu/en/）。Worker `shibainu`、D1 `shibainu-scores`。未：ハブ掲載（`/add-game shibainu`）、JSON-LD の datePublished。
+公開URL: https://waqk.jp/shibainu/（英語版 /shibainu/en/）。Worker `shibainu`、D1 `shibainu-scores`、R2 `shibainu-shares`。未：ハブ掲載（`/add-game shibainu`）、JSON-LD の datePublished。
 
 ## 作り方（大事）
 - 配信するのは `index.html`（1ファイル。毛のデータと効果音も base64 で中に入る）と `vendor/three.min.js`（three.js **r128**。モックと同じ版を同梱。共通ルールの r186 とは違う。2026-11-22 運営者）と `ogp.jpg`。
@@ -22,6 +22,7 @@
 - 左上に毛玉サイズと残り時間（26px）、右上に ♪（音）と言語。床は濃い茶色、ラグなし。
 - 毛色：赤毛は彩度を少し抑えたオレンジ、白い所は白寄り（dog_template.html）。目は1.2倍。抜いた毛（毛玉）は白とごく淡い茶色の2色を境なく混ぜる（game_tail.js の cottonFS）。カメラは犬を中心に回し、毛玉は大きくなるほど犬から離す。毛玉がカメラと犬の間に入ったら毛玉と影を完全に消す（うっすら残さない）。カメラは毛玉を入れるために引きすぎない（犬だけの距離の1.4倍まで。毛玉ははみ出してよい）（2026-11-23）。
 - 抜いている間だけ、毛の束の先に親指と人差し指を出す（手の甲なし。付け根は指先からの距離でぼかして消す。指は画面で引いた方向から少し手前寄りに伸びる。game_tail.js の hand・handGrip・fingerMat）。
+- Xでシェア：押したときだけ、結果の絵に直径・称号・題名（日英）を入れた 1200×630 の JPEG を R2 に上げ、共有ページ `/shibainu/s/<id>` の URL で投稿（手本は sanma）。共有ページの題と説明は Worker が直径から作り直す。/api/share は IP ごとに1分5件。1枚約130KB・保存期間なし（2026-11-23）。結果の絵の寄り具合は game_tail.js の `SHOT`。
 - OGP：犬は左、毛玉は右、タイトルは左上に Hachi Maru Pop（文字の背景なし、白とこげ茶の縁取り）。ゲームの画面から撮る。
 - 全国ランキング（歴代／デイリーの TOP100。score は直径の 0.1cm 単位）。広告はジーニーのオーバーレイ（animal-rocket の写し）。
 

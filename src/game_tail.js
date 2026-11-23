@@ -716,28 +716,64 @@ function showResult() {
   gaStart(); ga('game_end', { result: endBy === 'time' ? 'time_up' : 'angry', score: +dia.toFixed(1) });
   shareText = TX.share(dia.toFixed(1), hiki.toFixed(2));
   const rk = LS.get('shiba_rank2', []); rk.push({ d: +dia.toFixed(1), h: +hiki.toFixed(2), t: Date.now() }); rk.sort((a, b) => b.d - a.d); LS.set('shiba_rank2', rk.slice(0, 10));
-  lastRec = { score: Math.round(dia * 10), plucks, secs: Math.round((performance.now() - playT0) / 100) / 10 }; rkSent = false; rankOpen(false);
+  lastRec = { score: Math.round(dia * 10), plucks, secs: Math.round((performance.now() - playT0) / 100) / 10 }; rkSent = false; rankOpen(false); shareId = null;
   try { makeShot(); } catch (e) { console.warn(e); }
   $('res').classList.remove('hide');
 }
 // 結果の画像：犬と毛玉の絵だけ（数字と称号は画像の下に文字で出す。2026-11-22 運営者）
+const SHOT = { zoom: 0.9, lift: 0.045 };   // 結果の絵の寄り具合（1 = 犬と毛玉がちょうど入る距離）と、絵を下へ寄せる量
 function makeShot() {
   const W = 1200, H = 630, rt = new THREE.WebGLRenderTarget(W, H), cam = new THREE.PerspectiveCamera(30, W / H, 0.02, 30);
   const tv = Math.tan(15 * Math.PI / 180), mad = endBy === 'gau';
   // 画角は終わり方によらず同じ（顔が見える正面寄りから、犬と毛玉が入る距離）。変えるのは顔だけ（2026-11-22 運営者）
-  const a = -0.45, e = 0.2, fv = fitView(a, e, tv * 0.86, tv * W / H * 0.9), d = fv.d, tgt = fv.tgt;
+  // 犬と毛玉を手前に大きく（はみ出す手前まで寄せる）。上はシェア画像の文字の分を空けるため、少し下に寄せる（2026-11-23 運営者）
+  const a = -0.45, e = 0.2, fv = fitView(a, e, tv * 0.98, tv * W / H * 0.99), d = fv.d * SHOT.zoom, tgt = fv.tgt.clone(); tgt.y += SHOT.lift * d;
   cam.position.set(tgt.x + Math.cos(e) * Math.cos(a) * d, tgt.y + Math.sin(e) * d, tgt.z + Math.cos(e) * Math.sin(a) * d); cam.lookAt(tgt);
   // 頭を、この写真のカメラへ向ける（ゲームのカメラが後ろにあっても顔が写る）
   const keepRot = headP.rotation.clone(); dog.updateMatrixWorld();
   const cl = dog.worldToLocal(cam.position.clone()).sub(new THREE.Vector3().fromArray(META.hpos));
   headP.rotation.set(0, Math.max(-1.5, Math.min(1.5, Math.atan2(-cl.z, cl.x))) * (mad ? 1 : 0.8), Math.max(-0.3, Math.min(0.5, Math.atan2(cl.y, Math.hypot(cl.x, cl.z)))) - (mad ? 0.12 : 0.05));
-  const keepPx = U.uPx.value, keepF = pileU.uFade.value; U.uPx.value = 2 * Math.tan(cam.fov * Math.PI / 360) / H; setFade(1);
-  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); U.uPx.value = keepPx; headP.rotation.copy(keepRot); setFade(keepF);
+  const keepPx = U.uPx.value, keepF = pileU.uFade.value, keepH = hand.g.visible; U.uPx.value = 2 * Math.tan(cam.fov * Math.PI / 360) / H; setFade(1); hand.g.visible = false;
+  renderer.setRenderTarget(rt); renderer.render(scene, cam); renderer.setRenderTarget(null); U.uPx.value = keepPx; headP.rotation.copy(keepRot); setFade(keepF); hand.g.visible = keepH;
   const buf = new Uint8Array(W * H * 4); renderer.readRenderTargetPixels(rt, 0, 0, W, H, buf); rt.dispose();
   const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d'), img = g.createImageData(W, H);
   for (let y = 0; y < H; y++) img.data.set(buf.subarray((H - 1 - y) * W * 4, (H - y) * W * 4), y * W * 4);
-  g.putImageData(img, 0, 0);
+  g.putImageData(img, 0, 0); shotCanvas = c;
   $('shot').src = c.toDataURL('image/jpeg', 0.88);
+}
+// ---- Xでシェア：結果の絵に直径と称号を入れた画像を R2 に置き、共有ページ（/s/<id>）の URL で投稿する（手本は sanma。2026-11-23 運営者）
+let shotCanvas = null, shareId = null, shareFont = null;
+function loadShareFont(text) {   // 字は OGP と同じ Hachi Maru Pop。使う字を渡して読む（渡さないと漢字の分割ファイルが読まれない）
+  if (!shareFont) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = 'https://fonts.googleapis.com/css2?family=Hachi+Maru+Pop&display=block'; document.head.append(l); shareFont = new Promise(ok => { l.onload = ok; l.onerror = ok; setTimeout(ok, 2500); }); }
+  return shareFont.then(() => Promise.race([document.fonts.load('80px "Hachi Maru Pop"', text), new Promise(ok => setTimeout(ok, 2500))])).catch(() => {});
+}
+async function buildShare() {
+  const d = (lastRec.score / 10).toFixed(1), ttl = TX.titles[TITLE_CM.findIndex(c => lastRec.score / 10 < c)];
+  const l1 = LANG === 'en' ? `${d} cm fur ball!` : `直径 ${d}cm`, l2 = TX.rTtl(ttl), l3 = LANG === 'en' ? 'Shedding Shiba' : '柴犬（換毛期）';
+  await loadShareFont(l1 + l2 + l3);
+  const c = document.createElement('canvas'); c.width = 1200; c.height = 630; const g = c.getContext('2d');
+  g.drawImage(shotCanvas, 0, 0); g.lineJoin = 'round'; g.textBaseline = 'alphabetic';
+  const draw = (t, x, y, px, fill, max) => {   // 白とこげ茶の縁取り（OGP と同じ）。長ければ縮める
+    g.font = `${px}px "Hachi Maru Pop", sans-serif`; const w = g.measureText(t).width; if (w > max) { px = Math.floor(px * max / w); g.font = `${px}px "Hachi Maru Pop", sans-serif`; }
+    g.save(); g.shadowColor = 'rgba(60,30,10,.35)'; g.shadowBlur = 14; g.shadowOffsetY = 6; g.strokeStyle = '#5a3418'; g.lineWidth = px * 0.24; g.strokeText(t, x, y); g.restore();
+    g.strokeStyle = '#fff'; g.lineWidth = px * 0.14; g.strokeText(t, x, y); g.fillStyle = fill; g.fillText(t, x, y);
+  };
+  g.textAlign = 'left'; draw(l1, 48, 112, 96, '#e2782a', 760); draw(l2, 52, 186, 46, '#7a4a26', 760);
+  g.textAlign = 'right'; draw(l3, 1164, 600, 40, '#e2782a', 500);
+  return c;
+}
+const jpeg = (c, q) => new Promise(ok => c.toBlob(ok, 'image/jpeg', q));
+async function uploadShare() {
+  if (shareId) return shareId;
+  if (!shotCanvas || !lastRec) return null;
+  const c = await buildShare();
+  let img = await jpeg(c, 0.85);
+  if (img && img.size > 190 * 1024) img = await jpeg(c, 0.65);
+  if (!img) return null;
+  const form = new FormData(); form.append('img', img, 'share.jpg'); form.append('score', String(lastRec.score)); form.append('lang', LANG);
+  const r = await fetch('api/share', { method: 'POST', body: form });
+  if (r.status !== 201) return null;
+  return (shareId = (await r.json()).id);
 }
 function reset() {
   for (const P_ of PARTS) {
@@ -760,7 +796,19 @@ function begin() {
 }
 $('go').onclick = begin; $('again').onclick = begin;
 addEventListener('wheel', e => { zoomU = Math.max(0.45, Math.min(1.2, zoomU * (1 + e.deltaY * 0.001))); }, { passive: true });
-$('share').onclick = () => { ga('share', { method: 'x' }); window.open('https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(LANG === 'en' ? 'https://waqk.jp/shibainu/en/' : 'https://waqk.jp/shibainu/'), '_blank', 'noopener'); };
+// 押した直後に空のタブを開いてから投稿画面へ移す（ポップアップを止められないように）。画像を送れなかったら、ゲームの URL で投稿画面を開く
+// 共有ページの URL は waqk.jp では https://waqk.jp/shibainu/s/<id>、試験用のアドレス・手元ではそのアドレスの /s/<id>
+const shareBase = location.hostname === 'waqk.jp' ? 'https://waqk.jp/shibainu' : location.origin + location.pathname.replace(/\/(en\/)?(index\.html)?$/, '');
+$('share').onclick = async () => {
+  if ($('share').disabled) return;
+  ga('share', { method: 'x' }); $('share').disabled = true;
+  const w = window.open('', '_blank');
+  let url = LANG === 'en' ? 'https://waqk.jp/shibainu/en/' : 'https://waqk.jp/shibainu/';
+  try { const id = await uploadShare(); if (id) url = `${shareBase}/s/${id}`; } catch (e) {}
+  const u = 'https://x.com/intent/post?text=' + encodeURIComponent(shareText) + '&url=' + encodeURIComponent(url);
+  if (w) { w.opener = null; w.location.href = u; } else window.open(u, '_blank', 'noopener');
+  $('share').disabled = false;
+};
 $('langStart').onclick = $('langBtn').onclick = () => setLang(LANG === 'ja' ? 'en' : 'ja');
 // ---- 全国ランキング（歴代／デイリーの TOP100。手本は sarumo-kikara・corn）。API はランキングを初めて開いたときと登録のときだけ
 const API = 'api/scores';

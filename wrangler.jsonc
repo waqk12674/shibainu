@@ -7,17 +7,21 @@
   "routes": [{ "pattern": "waqk.jp/shibainu/*", "zone_name": "waqk.jp" }],
   // routes を書くと workers.dev が既定で無効になるため、有効にしておく（workers.dev には _headers で noindex）
   "workers_dev": true,
-  // ランキングの API（/api/scores）と英語版（/en/）だけを Worker が処理する。それ以外の静的ファイルは Worker を通らない
+  // ランキングの API（/api/scores）・Xでシェア（/api/share・/s/*）と英語版（/en/）だけを Worker が処理する。それ以外の静的ファイルは Worker を通らない
   // （Workers のリクエストに数えない）。公開するファイルは .assetsignore の許可リストで決める
   "main": "worker/index.js",
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
     // /shibainu/… は waqk.jp のルートから届くとき、先頭なしは workers.dev・wrangler dev のとき
-    "run_worker_first": ["/shibainu/api/*", "/shibainu/en", "/shibainu/en/", "/api/*", "/en", "/en/"]
+    "run_worker_first": ["/shibainu/api/*", "/shibainu/en", "/shibainu/en/", "/shibainu/s/*", "/api/*", "/en", "/en/", "/s/*"]
   },
   // 全国ランキング（表は schema.sql）
   "d1_databases": [
     { "binding": "DB", "database_name": "shibainu-scores", "database_id": "7e5259fb-8cb4-4b32-9df1-304724c0bfcd" }
-  ]
+  ],
+  // Xでシェアの結果画像（1200×630 の JPEG。キーは s/<id>.jpg。期限なし）
+  "r2_buckets": [{ "binding": "SHARES", "bucket_name": "shibainu-shares" }],
+  // /api/share の連打止め（IP ごとに1分5件）。namespace_id はアカウント内で一意の数字（ほかのゲームが 1001〜7001 を使用）
+  "ratelimits": [{ "name": "SHARE_RL", "namespace_id": "8001", "simple": { "limit": 5, "period": 60 } }]
 }
