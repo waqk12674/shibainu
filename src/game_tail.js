@@ -12,14 +12,14 @@ const LANG = (() => {
 document.documentElement.dataset.uiLang = LANG;
 const STR = {
   ja: { tut: '毛をつまんで、そっと引っぱってみよう', empty: 'もう抜ける毛がない', yelp: 'キャン…', thin: 'そこはもう毛が薄い…', big: 'ごっそり！',
-    plus: b => `＋${b}秒`, hudDia: d => `毛玉サイズ ${d}cm`, hudTime: t => `残り ${t}秒`, gau: 'ガウッ！', timeup: 'そこまで！', start: 'はじめる',
+    plus: b => `＋${b}秒`, gain: d => `＋${d}cm`, hudDia: d => `毛玉サイズ ${d}cm`, hudTime: t => `残り ${t}秒`, gau: 'ガウッ！', timeup: 'そこまで！', start: 'はじめる',
     rDia: d => `直径 ${d}cm`, rHiki: h => `柴犬 ${h}匹分の毛玉`, rTtl: t => `称号「${t}」`,
     titles: ['初めての毛づくろい', '毛づくろい見習い', '一般的な毛づくろい', '慣れてきた毛づくろい', 'プロの毛づくろい', '伝説の毛づくろい'],
     share: (d, h) => `「柴犬（換毛期）」で 直径${d}cm（柴犬${h}匹分）の毛玉ができた！ #柴犬換毛期 #WAQK`,
     best: (d, h) => `この端末の最高：毛玉 直径 ${d}cm（柴犬${h}匹分）`,
     shot: '今回の毛玉と柴犬', ng: 'その名前は登録できません', needName: '名前を入れてください', tooFast: '少し待ってから登録してください', netErr: 'つながりませんでした。もう一度試してください', done: '登録しました', noData: 'まだ記録がありません' },
   en: { tut: 'Pinch some fur and pull gently', empty: 'No fur left here', yelp: 'Yelp!', thin: "That spot's getting thin…", big: 'Big tuft!',
-    plus: b => `+${b}s`, hudDia: d => `Fur ball ${d}cm`, hudTime: t => `Time ${t}s`, gau: 'WOOF!', timeup: "Time's up!", start: 'Start',
+    plus: b => `+${b}s`, gain: d => `+${d}cm`, hudDia: d => `Fur ball ${d}cm`, hudTime: t => `Time ${t}s`, gau: 'WOOF!', timeup: "Time's up!", start: 'Start',
     rDia: d => `${d} cm across`, rHiki: h => `${h} shibas' worth of fur`, rTtl: t => `Title: “${t}”`,
     titles: ['First-time Groomer', 'Groomer in Training', 'Everyday Groomer', 'Seasoned Groomer', 'Pro Groomer', 'Legendary Groomer'],
     share: (d, h) => `I made a ${d}cm fur ball (${h} shibas' worth) in "Shedding Shiba"! #WAQK`,
@@ -287,7 +287,8 @@ function pop(q, pinchW) {
   const N = q.tuft.N, from = new Float32Array(N * PTS * 3), P3 = geo.attributes.position.array, v3 = new THREE.Vector3();
   for (let s = 0; s < N; s++) for (let i = 0; i < PTS; i++) { v3.fromArray(P3, ((s * PTS + i) * 2) * 3).applyMatrix4(mesh.matrixWorld); v3.toArray(from, (s * PTS + i) * 3); }
   scene.add(mesh); mesh.position.set(0, 0, 0); mesh.quaternion.identity(); mesh.scale.set(1, 1, 1);
-  const addV = frac * G.fluff * META.vol * (q.floater ? 1.5 : 1); pileV += addV;
+  const addV = frac * G.fluff * META.vol * (q.floater ? 1.5 : 1), dia0 = Math.cbrt(3 * pileV / (4 * Math.PI)) * 200; pileV += addV;
+  gainPop(Math.cbrt(3 * pileV / (4 * Math.PI)) * 200 - dia0, toScreen(pinchW), !!q.floater);   // 毛玉の直径が何cm増えたかを、抜いた所に出す（2026-11-24 運営者）
   const cs = clumpShape(from, N, addV);
   flying.push({ mesh, t: 0, from, to: cs.to, c: cs.c, rc: cs.rc, cur: new Float32Array(from.length), addV });
   for (let i = 0; i < 6 + Math.min(20, q.n / 15); i++) spawn({ kind: 'mote', p: pinchW.clone(), v: new THREE.Vector3((Math.random() - 0.5) * 0.08, 0.02 + Math.random() * 0.05, (Math.random() - 0.5) * 0.08), age: 0, life: 2.5 + Math.random() * 2.5, size: 0.003 + Math.random() * 0.004, col: [1, 0.95, 0.85], a: 0.8 });
@@ -303,6 +304,17 @@ function pop(q, pinchW) {
 }
 // ---- 時間ボーナスの演出：抜いた所から「＋○秒」が左上の残り時間へ飛んでいき、届いたら残り時間が増える
 let bonusHold = 0;
+function gainPop(d, from, big) {   // 「＋1.2cm」：抜いた所から上へ浮かんで消える。浮き毛は大きく
+  if (d < 0.05) return;
+  const el = document.createElement('div'); el.className = 'gain' + (big ? ' gainBig' : ''); el.textContent = TX.gain(d.toFixed(1)); document.body.appendChild(el);
+  el.style.left = from.x + 'px'; el.style.top = from.y + 'px';
+  el.animate([
+    { transform: 'translate(-50%,-120%) scale(.6)', opacity: 0 },
+    { transform: 'translate(-50%,-190%) scale(1.1)', opacity: 1, offset: 0.2 },
+    { transform: 'translate(-50%,-260%) scale(1)', opacity: 1, offset: 0.7 },
+    { transform: 'translate(-50%,-320%) scale(1)', opacity: 0 }
+  ], { duration: 1300, easing: 'ease-out', fill: 'forwards' }).onfinish = () => el.remove();
+}
 function bonusFly(b, from) {
   const el = document.createElement('div'); el.className = 'bfly'; el.textContent = TX.plus(b); document.body.appendChild(el);
   const r = $('timer').getBoundingClientRect(), dx = r.right + 8 - from.x, dy = r.top + r.height / 2 - from.y;

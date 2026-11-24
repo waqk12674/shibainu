@@ -108,6 +108,8 @@ html[data-ui-lang="ja"] [lang="en"], html[data-ui-lang="en"] [lang="ja"]{display
 @keyframes blink{0%,100%{opacity:.15}50%{opacity:.65}}
 /* メッセージとうなり声は、柴犬の上に出す（位置は毎フレーム JS で合わせる） */
 #msg{position:fixed;left:50%;top:40%;transform:translate(-50%,-100%);background:rgba(58,36,22,.85);color:var(--paper);padding:9px 18px;border-radius:20px;font-size:18px;font-weight:700;white-space:nowrap;opacity:0;transition:opacity .3s;pointer-events:none}
+.gain{position:fixed;left:0;top:0;font-size:30px;font-weight:900;color:#fff;-webkit-text-stroke:1.5px var(--ink);text-shadow:0 2px 0 var(--ink),0 0 6px rgba(0,0,0,.35);white-space:nowrap;pointer-events:none;z-index:19}
+.gain.gainBig{font-size:38px;color:#ffe2b8}
 .bfly{position:fixed;left:0;top:0;font-size:32px;font-weight:900;color:#ffd24a;-webkit-text-stroke:1.5px var(--ink);text-shadow:0 2px 0 var(--ink);white-space:nowrap;pointer-events:none;z-index:20}
 #growlT{position:fixed;left:50%;top:30%;transform:translate(-50%,-100%);font-size:30px;letter-spacing:-.04em;font-weight:900;color:var(--paper);-webkit-text-stroke:1.5px var(--ink);text-shadow:0 2px 0 var(--ink);white-space:nowrap;opacity:0;pointer-events:none}
 #gau{position:fixed;left:50%;top:42%;transform:translate(-50%,-50%);font-size:min(22vw,120px);font-weight:900;color:var(--paper);-webkit-text-stroke:3px var(--ink);text-shadow:0 6px 0 var(--ink);opacity:0;pointer-events:none;white-space:nowrap}
