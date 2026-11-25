@@ -99,6 +99,15 @@ html[data-ui-lang="ja"] [lang="en"], html[data-ui-lang="en"] [lang="ja"]{display
 .rankBox li b{flex:none;margin-left:auto}
 .rankBox li.me{background:#fde6c8;border-radius:6px}
 .rk-note{font-size:11px;color:var(--mute);margin:6px 0 4px}
+/* 登録の確認（2026-11-25。game_tail.js の rkForm）：名前と注意書き。結果画面の上の広告の帯はない（ジーニーのオーバーレイだけ）ので、下はオーバーレイの高さ（--adB）を空ける */
+#rankConfirm{box-sizing:border-box;width:min(380px,calc(100% - 32px));bottom:var(--adB,0px);max-height:calc(100dvh - 32px - var(--adB,0px));overflow-y:auto;padding:20px 20px 18px;border:0;border-radius:18px;background:var(--paper);color:var(--ink);box-shadow:0 10px 40px rgba(60,40,20,.25);text-align:center}
+#rankConfirm::backdrop{background:rgba(60,40,20,.35);bottom:var(--adB,0px)}
+#rankConfirm h2{margin:0 0 8px;font-size:19px}
+#rankConfirm .cfName{margin:0 0 10px;font-size:17px;font-weight:800;overflow-wrap:anywhere}
+#rankConfirm .cfRules{margin:0 0 14px;padding-left:1.2em;font-size:13px;line-height:1.6;text-align:left;list-style:disc}
+#rankConfirm .cfRules[lang="ja"]{word-break:keep-all;overflow-wrap:anywhere} /* 日本語は文節の切れ目（<wbr>）だけで改行する */
+#rankConfirm .cfBtns{display:flex;gap:10px}
+#rankConfirm .cfYes{background:var(--shiba);border-color:var(--shiba);color:#fff;font-weight:900}
 /* ジーニーのオーバーレイ：ジーニーが body の最後に広告の高さの余白（#geniee_overlay_boots）を足すので、その分だけゲームを上に縮める（animal-rocket の写し） */
 #c{height:calc(100% - var(--adB,0px))}   /* canvas は height:auto だと上下の指定で伸びないので、高さを計算する */
 .ov,#arrows .dn{margin-bottom:var(--adB,0px)}
@@ -207,6 +216,14 @@ h1{margin:0 0 12px;font-size:34px;letter-spacing:.04em}h1 small{font-size:.62em}
     <button class="big" id="rankDlgClose" type="button" style="margin-top:10px"><span lang="ja">閉じる</span><span lang="en">Close</span></button>
   </div>
 </div>
+<!-- 結果画面の「登録」で開く確認（2026-11-25 運営者決定の文言。game_tail.js の rkForm） -->
+<dialog id="rankConfirm" aria-labelledby="rkCfTitle">
+  <h2 id="rkCfTitle"><span lang="ja">この名前で登録しますか？</span><span lang="en">Register with this name?</span></h2>
+  <p class="cfName" id="rkCfName"></p>
+  <ul class="cfRules" lang="ja"><li>名前は<wbr>ランキングで、<wbr>だれでも<wbr>見られます。</li><li>本名・<wbr>学校名・<wbr>住所・<wbr>連絡先など、<wbr>個人が<wbr>分かる<wbr>ことは<wbr>入れないで<wbr>ください。</li><li>下品な<wbr>言葉や、<wbr>人を<wbr>傷つけたり、<wbr>からかったり<wbr>する<wbr>名前は<wbr>登録できません。</li><li>ルールに<wbr>反する<wbr>名前や<wbr>不正な<wbr>記録は、<wbr>運営者が<wbr>削除します。<wbr>悪質な<wbr>場合は、<wbr>法的措置を<wbr>とる<wbr>ことが<wbr>あります。</li></ul>
+  <ul class="cfRules" lang="en"><li>Your name is shown publicly on the leaderboard.</li><li>Don’t include personal info (real name, school, address, contact details).</li><li>No offensive, hateful or bullying names.</li><li>We remove names and scores that break the rules, and may take legal action in serious cases.</li></ul>
+  <div class="cfBtns"><button class="pill" id="rkCfNo" type="button"><span lang="ja">やめる</span><span lang="en">Cancel</span></button><button class="pill cfYes" id="rkCfYes" type="button"><span lang="ja">登録する</span><span lang="en">Register</span></button></div>
+</dialog>
 <div id="panel" class="hide"></div>
 <script src="vendor/three.min.js"></script><!-- three.js r128（モックと同じ版を同梱。2026-11-22 運営者） -->
 <script>

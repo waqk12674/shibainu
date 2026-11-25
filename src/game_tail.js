@@ -852,9 +852,19 @@ $('rankStart').onclick = () => {
 };
 $('rankDlgClose').onclick = () => { $('rankDlg').classList.add('hide'); $('rankBox').classList.add('hide'); $('res').querySelector('.card').append($('rankBox')); };
 $('tabAll').onclick = () => { rkTab = 'all'; drawBoard(); }; $('tabDay').onclick = () => { rkTab = 'day'; drawBoard(); };
-$('rkForm').onsubmit = async ev => {
+// 「登録」→ 確認（名前と注意書き）→「登録する」で送る。「やめる」・Esc は名前の欄に戻る（2026-11-25）
+const rkCf = $('rankConfirm');
+$('rkForm').onsubmit = ev => {
   ev.preventDefault(); const name = $('rkName').value.trim(); $('rkErr').textContent = '';
   if (!name) { $('rkErr').textContent = TX.needName; return; }
+  if (!lastRec || rkSent) return;
+  $('rkCfName').textContent = LANG === 'en' ? `“${name}”` : `「${name}」`;
+  rkCf.showModal(); rkCf.scrollTop = 0;
+};
+$('rkCfNo').onclick = () => rkCf.close();
+rkCf.addEventListener('close', () => { if (rkCf.returnValue !== 'yes') $('rkName').focus(); rkCf.returnValue = ''; });
+$('rkCfYes').onclick = () => { rkCf.close('yes'); sendRank($('rkName').value.trim()); };
+async function sendRank(name) {
   if (!lastRec || rkSent) return;
   try {
     const r = await fetch(API, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.assign({ player: PLAYER, name }, lastRec)) });
@@ -864,7 +874,7 @@ $('rkForm').onsubmit = async ev => {
     if (!r.ok) throw 0;
     rkSent = true; LS.set('shiba_name', name); $('rkForm').classList.add('hide'); $('rkErr').textContent = TX.done; setBoard(j);
   } catch (e) { $('rkErr').textContent = TX.netErr; }
-};
+}
 $('snd').classList.toggle('off', muted);
 $('snd').onclick = () => { muted = !muted; LS.set('shiba_muted', muted); $('snd').classList.toggle('off', muted); if (AC) AC.master.gain.value = muted ? 0 : 0.8; };
 if (!/[?&]debug=1/.test(location.search)) $('adj').classList.add('hide');   // 調整パネルは ?debug=1 のときだけ
