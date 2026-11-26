@@ -25,7 +25,7 @@
 - 抜いている間だけ、毛の束の先に親指と人差し指を出す（手の甲なし。付け根は指先からの距離でぼかして消す。指は画面で引いた方向から少し手前寄りに伸びる。game_tail.js の hand・handGrip・fingerMat）。
 - Xでシェア：押したときだけ、結果の絵に直径・称号・題名（日英）を入れた 1200×630 の JPEG を R2 に上げ、共有ページ `/shibainu/s/<id>` の URL で投稿（手本は sanma）。共有ページの題と説明は Worker が直径から作り直す。/api/share は IP ごとに1分5件。1枚約130KB・保存期間なし（2026-11-23）。結果の絵の寄り具合は game_tail.js の `SHOT`。
 - OGP：犬は左、毛玉は右、タイトルは左上に Hachi Maru Pop（文字の背景なし、白とこげ茶の縁取り）。ゲームの画面から撮る。
-- ランキングの「登録」は、確認のダイアログ（`#rankConfirm`：名前と注意書き4行。文言は game_shell.html に日英で書く。2026-11-25 運営者決定の文言で変えない）で「登録する」を押してから送る（game_tail.js の rkForm・sendRank）。名前の欄の Enter（form の submit）でも確認が開く。
+- ランキングの「登録」は、確認のダイアログ（`#rankConfirm`：名前・見出し・注意書き（4行＋小項目2つ）。文言は game_shell.html に日英で書く。2026-11-26 運営者決定の文で変えない。正本は `C:/src/shared/ranking-notice.md`）で「登録する」を押してから送る（game_tail.js の rkForm・sendRank）。名前の欄の Enter（form の submit）でも確認が開く。
 - 全国ランキング（歴代／デイリーの TOP100。score は直径の 0.1cm 単位）。広告はジーニーのオーバーレイ（animal-rocket の写し）。
 
 ## 注意点
